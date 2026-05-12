@@ -76,6 +76,7 @@ sql/                  # schema and sqlc query definitions
 - `go run ./... migrate down` - roll back one migration
 - `go run ./... migrate status` - show migration status
 - `go run ./... bootstrap` - initialize local development data
+- `go run ./... page create --slug docs/getting-started --body-file ./body.md` - create a page revision from markdown
 - `go test ./...` - run all Go tests
 - `go vet ./...` - run Go static analysis
 - `golangci-lint run ./...` - run linter suite
