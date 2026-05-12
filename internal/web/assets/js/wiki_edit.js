@@ -147,13 +147,14 @@ function initWikiEditor() {
   });
 }
 
-if (typeof window !== "undefined") {
-  window.wikiEditor = function wikiEditor(el) {
-    return {
-      markdown: el?.dataset?.initialMarkdown || "",
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("alpine:init", () => {
+    Alpine.data("wikiEditor", () => ({
+      markdown: "",
       previewHTML: "",
-      async init() {
-        await this.refreshPreview();
+      init() {
+        this.markdown = this.$el?.dataset?.initialMarkdown || "";
+        this.refreshPreview();
       },
       async refreshPreview() {
         try {
@@ -162,9 +163,8 @@ if (typeof window !== "undefined") {
           this.previewHTML = "<p>Preview unavailable.</p>";
         }
       },
-      pageSlug: el?.dataset?.pageSlug || "",
-    };
-  };
+    }));
+  });
 }
 
 initWikiEditor();
