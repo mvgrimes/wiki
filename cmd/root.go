@@ -47,6 +47,7 @@ var serverCmd = &cobra.Command{
 		return server.Start(cmd.Context(), server.Config{
 			Address:     cfg.ServerAddress,
 			Port:        cfg.ServerPort,
+			Environment: cfg.Environment,
 			JWTSecret:   cfg.JWTSecret,
 			SSOLoginURL: cfg.SSOLoginURL,
 			JWTCookie:   cfg.JWTCookie,
