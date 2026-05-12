@@ -1803,6 +1803,9 @@
       color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
     }
   }
+  .text-error {
+    color: var(--color-error);
+  }
   .text-primary {
     color: var(--color-primary);
   }
