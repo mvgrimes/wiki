@@ -11,4 +11,10 @@ linters:
 
 formatters:
   enable:
+    - goimports
     - gofmt
+    - golines
+  settings:
+    goimports:
+      local-prefixes:
+        - wiki

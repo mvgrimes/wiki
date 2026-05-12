@@ -1,0 +1,37 @@
+# Logs
+*.log
+
+# dotenv environment variables file
+.env
+.env.*
+.autoenv.zsh
+
+# tmp, system and ref files
+tmp/
+_tmp/
+.DS_Store
+trees/
+.tickets/
+/data/
+
+# Editor
+Session.vim
+
+# Added by goreleaser init:
+/dist/
+
+# Samples
+
+# devcontainers (for now)
+/.devcontainer/
+
+# plans
+/docs/plan/
+/docs/ref/
+
+# Build artifacts
+/wiki
+/wiki-linux-amd64
+
+# Frontend deps
+node_modules/

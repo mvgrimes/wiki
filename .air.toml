@@ -2,7 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/main ."
+cmd = "go build -o ./tmp/main ./main.go"
 bin = "./tmp/main"
-include_ext = ["go", "tpl", "tmpl", "html"]
+args_bin = ['server']
+include_ext = ["go"]
 exclude_dir = ["tmp", "data", "docs"]
