@@ -68,6 +68,19 @@ func Start(ctx context.Context, cfg Config) error {
 func New(cfg Config) (*echo.Echo, error) {
 	e := echo.New()
 	e.HideBanner = true
+	// Is this necessary?
+	e.HTTPErrorHandler = func(err error, c echo.Context) {
+		if c.Response().Committed {
+			return
+		}
+		slog.Error("http internal error",
+			"request_id", c.Response().Header().Get(echo.HeaderXRequestID),
+			"method", c.Request().Method,
+			"uri", c.Request().RequestURI,
+			"error", err,
+		)
+		_ = c.String(http.StatusInternalServerError, "internal server error")
+	}
 	e.Use(middleware.RequestID())
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus:    true,

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,15 +23,20 @@ type Config struct {
 type Principal struct {
 	Subject      string
 	Email        string
+	User         int64
 	Role         string
 	Capabilities []string
 }
 
 type claims struct {
-	Email        string   `json:"email"`
-	Role         string   `json:"role"`
-	Capabilities []string `json:"capabilities"`
+	Data         claimsData `json:"data"`
+	Capabilities []string   `json:"capabilities"`
 	jwt.RegisteredClaims
+}
+type claimsData struct {
+	// Email        string   `json:"email"`
+	User int64  `json:"user"`
+	Role string `json:"role"`
 }
 
 func Middleware(cfg Config) echo.MiddlewareFunc {
@@ -51,6 +57,12 @@ func Middleware(cfg Config) echo.MiddlewareFunc {
 
 			principal, err := parsePrincipal(tokenString, cfg.JWTSecret)
 			if err != nil {
+				slog.Warn("invalid token", "error", err)
+				return unauthenticated(c, cfg.SSOLoginURL)
+			}
+
+			slog.Info("authenticated user", "user", principal.User, "email", principal.Email, "role", principal.Role)
+			if principal.Role != "EMPLOYEE" {
 				return unauthenticated(c, cfg.SSOLoginURL)
 			}
 
@@ -100,9 +112,10 @@ func parsePrincipal(tokenString, jwtSecret string) (Principal, error) {
 	}
 
 	return Principal{
-		Subject:      parsedClaims.Subject,
-		Email:        parsedClaims.Email,
-		Role:         parsedClaims.Role,
+		Subject: parsedClaims.Subject,
+		// Email:        parsedClaims.Data.Email,
+		User:         parsedClaims.Data.User,
+		Role:         parsedClaims.Data.Role,
 		Capabilities: parsedClaims.Capabilities,
 	}, nil
 }
