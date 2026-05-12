@@ -2,6 +2,52 @@
 
 Wiki is a Go web application scaffold with a CLI workflow modeled after the sharefile template conventions.
 
+## Prerequisites
+
+- Go (version defined by `go.mod`)
+- `just` (optional, but recommended for common workflows)
+- `golangci-lint` (for lint checks)
+- `sqlc` (for query code generation)
+- `pnpm` (for frontend/package scripts)
+
+## Getting Started
+
+1) Install Go dependencies:
+
+```bash
+go mod tidy
+```
+
+2) Copy environment defaults (if needed):
+
+```bash
+cp .env.example .env
+```
+
+3) Apply database migrations:
+
+```bash
+go run ./... migrate up
+```
+
+4) Bootstrap local development state:
+
+```bash
+go run ./... bootstrap
+```
+
+5) Start the server:
+
+```bash
+go run ./... server
+```
+
+6) Run tests:
+
+```bash
+go test ./...
+```
+
 ## Project Layout
 
 ```text
@@ -23,52 +69,28 @@ sql/                  # schema and sqlc query definitions
   - development (`WIKI_ENVIRONMENT=development`): load templates from disk (`internal/web/templates`) for fast edit/reload.
   - non-development: load templates from embedded filesystem for reproducible deploys.
 
-## Quickstart
-
-1) Install dependencies:
-
-```bash
-go mod tidy
-```
-
-2) Run migrations:
-
-```bash
-go run ./... migrate up
-```
-
-3) Bootstrap local dev state:
-
-```bash
-go run ./... bootstrap
-```
-
-4) Start server:
-
-```bash
-go run ./... server
-```
-
-5) Run tests:
-
-```bash
-go test ./...
-```
-
 ## Developer Commands
 
-- `go run ./... server`
-- `go run ./... migrate up`
-- `go run ./... migrate down`
-- `go run ./... migrate status`
-- `go run ./... bootstrap`
-- `go test ./...`
-- `go vet ./...`
-- `golangci-lint run ./...`
-- `sqlc generate`
-- `pnpm test:js`
+- `go run ./... server` - run the web server
+- `go run ./... migrate up` - apply all migrations
+- `go run ./... migrate down` - roll back one migration
+- `go run ./... migrate status` - show migration status
+- `go run ./... bootstrap` - initialize local development data
+- `go test ./...` - run all Go tests
+- `go vet ./...` - run Go static analysis
+- `golangci-lint run ./...` - run linter suite
+- `sqlc generate` - regenerate database query code
+- `pnpm test:js` - run JavaScript tests
 
 You can also use `just` shortcuts from `justfile` for common workflows.
+
+Common shortcuts:
+
+- `just run`
+- `just migrate`
+- `just bootstrap`
+- `just test`
+- `just quality-gate`
 
 ## Test Matrix
 
