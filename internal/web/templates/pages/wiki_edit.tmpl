@@ -1,56 +1,46 @@
 {{define "pages/wiki_edit"}}
-    <main class="mx-auto max-w-5xl p-4">
+    <main class="mx-auto p-4">
       <h1>Edit {{.Title}}</h1>
       <p><small>Path: /wiki/{{.Slug}}</small></p>
       {{if .Error}}<p>{{.Error}}</p>{{end}}
       <form method="post" action="/wiki/{{.Slug}}/edit">
-        <div id="editor-app" data-page-slug="{{.Slug}}">
-          <textarea id="wiki-body" name="body" rows="20" cols="80" class="textarea textarea-bordered">{{.Body}}</textarea>
-          <section>
-            <h2 class="text-2xl">Live preview</h2>
-            <div id="markdown-preview" aria-live="polite"></div>
+        <div
+          id="editor-app"
+          data-page-slug="{{.Slug}}"
+          data-initial-markdown="{{.Body}}"
+          x-data="wikiEditor($el)"
+          x-init="init()"
+          class="grid gap-4 lg:grid-cols-2 overflow-hidden"
+        >
+          <section class="flex flex-col h-[70vh] w-full">
+            <h2 class="text-2xl">Editor</h2>
+            <textarea
+              id="wiki-body"
+              name="body"
+              class="textarea textarea-bordered flex-1 w-full min-h-96 overflow-y-scroll"
+              x-model="markdown"
+              @input.debounce.750ms="refreshPreview()"
+            ></textarea>
           </section>
-          <section>
+          <section class="flex flex-col h-[70vh] w-full">
+            <h2 class="text-2xl">Live preview</h2>
+            <div id="markdown-preview" aria-live="polite" x-html="previewHTML"
+            class="prose flex-1 w-full min-h-96 overflow-y-scroll rounded border border-gray-300 p-3"></div>
+          </section>
+        </div>
+        <div class="mt-4 grid gap-4 lg:grid-cols-2">
+          <section class="grid gap-4 lg:grid-cols-2">
             <h2 class="text-2xl">Attachments</h2>
             <p>Drop files here or choose files to upload.</p>
-            <div id="upload-dropzone">Drop files here</div>
-            <input id="upload-input" type="file" multiple />
+            <div id="upload-dropzone" class="rounded border-2 border-dashed border-gray-500 p-4 data-[active=true]:border-cyan-700 data-[active=true]:bg-cyan-50">Drop files here</div>
+            <input id="upload-input" type="file" multiple class="max-w-full" />
             <progress id="upload-progress" value="0" max="100" hidden></progress>
             <p id="upload-status" aria-live="polite"></p>
           </section>
-        </div>
-        <div>
           <button type="submit" class="btn btn-primary">Save revision</button>
         </div>
       </form>
       <script type="module" src="/assets/js/wiki_edit.js"></script>
+      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     </main>
-    <style>
-      #editor-app {
-        display: grid;
-        gap: 1rem;
-      }
-      #wiki-body {
-        width: 100%;
-        min-height: 16rem;
-      }
-      #markdown-preview {
-        border: 1px solid #d1d5db;
-        border-radius: 0.25rem;
-        min-height: 10rem;
-        padding: 0.75rem;
-      }
-      #upload-dropzone {
-        border: 2px dashed #6b7280;
-        border-radius: 0.25rem;
-        padding: 1rem;
-      }
-      #upload-dropzone[data-active="true"] {
-        background: #ecfeff;
-        border-color: #0e7490;
-      }
-      #upload-input {
-        max-width: 100%;
-      }
-    </style>
 {{end}}

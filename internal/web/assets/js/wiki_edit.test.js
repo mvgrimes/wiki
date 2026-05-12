@@ -9,17 +9,16 @@ global.document = {
 
 const mod = await import("./wiki_edit.js");
 
-test("renderMarkdown renders headings and list", () => {
-  const html = mod.renderMarkdown("# Title\n\n- one\n- two");
-  assert.match(html, /<h1>Title<\/h1>/);
-  assert.match(html, /<ul>/);
-  assert.match(html, /<li>one<\/li>/);
-});
+test("previewMarkdown returns rendered HTML", async () => {
+  global.fetch = async () => ({
+    ok: true,
+    async json() {
+      return { html: "<h1>Title</h1>" };
+    },
+  });
 
-test("renderMarkdown escapes scripts", () => {
-  const html = mod.renderMarkdown("<script>alert(1)</script>");
-  assert.doesNotMatch(html, /<script>/);
-  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  const html = await mod.previewMarkdown("# Title");
+  assert.equal(html, "<h1>Title</h1>");
 });
 
 test("buildAttachmentMarkdown handles image payload", () => {

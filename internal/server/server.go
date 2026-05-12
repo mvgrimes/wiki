@@ -126,6 +126,7 @@ func New(cfg Config) (*echo.Echo, error) {
 	e.Static("/assets", "internal/web/assets")
 	e.GET("/wiki/*", getWikiHandler(cfg.Queries))
 	e.POST("/wiki/*", postWikiHandler(cfg.Queries))
+	e.POST("/api/markdown/preview", markdownPreviewHandler())
 	e.POST("/api/uploads", uploadHandler(cfg))
 
 	return e, nil
@@ -179,36 +180,72 @@ func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
 			return c.String(http.StatusNotFound, "page has no revisions")
 		}
 
-		var buf bytes.Buffer
-		md := goldmark.New(
-			goldmark.WithParserOptions(
-				parser.WithAutoHeadingID(),
-			),
-			goldmark.WithExtensions(
-				extension.Table,
-				extension.Strikethrough,
-				extension.TaskList,
-				extension.Typographer,
-				&toc.Extender{},
-				&mermaid.Extender{},
-				&wikilink.Extender{
-					Resolver: CustomResolver,
-				},
-			),
-		)
-		if err := md.Convert([]byte(revisions[0].Body), &buf); err != nil {
-			panic(err)
+		htmlBody, err := renderMarkdownToHTML(revisions[0].Body)
+		if err != nil {
+			return err
 		}
-		slog.Debug("rendered page", "slug", slug, "body", buf.String())
+		slog.Debug("rendered page", "slug", slug, "body", htmlBody)
 
 		return c.Render(http.StatusOK, "layout", wikiViewData{
 			Title:           page.Title,
 			Slug:            page.Slug,
-			Body:            template.HTML(buf.String()),
+			Body:            template.HTML(htmlBody),
 			UpdatedAt:       revisions[0].CreatedAt,
 			ContentTemplate: "pages/wiki_view",
 		})
 	}
+}
+
+type markdownPreviewRequest struct {
+	Markdown string `json:"markdown"`
+}
+
+type markdownPreviewResponse struct {
+	HTML string `json:"html"`
+}
+
+func markdownPreviewHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var req markdownPreviewRequest
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
+		}
+
+		htmlBody, err := renderMarkdownToHTML(req.Markdown)
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusOK, markdownPreviewResponse{HTML: htmlBody})
+	}
+}
+
+func renderMarkdownToHTML(markdown string) (string, error) {
+	var buf bytes.Buffer
+	md := goldmark.New(
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
+		goldmark.WithExtensions(
+			extension.Table,
+			extension.Strikethrough,
+			extension.TaskList,
+			extension.Typographer,
+			&toc.Extender{
+				MaxDepth: 4,
+				Compact:  true,
+			},
+			&mermaid.Extender{},
+			&wikilink.Extender{
+				Resolver: CustomResolver,
+			},
+		),
+	)
+	if err := md.Convert([]byte(markdown), &buf); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
 
 var CustomResolver wikilink.Resolver = customResolver{}

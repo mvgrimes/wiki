@@ -279,6 +279,49 @@ func TestWikiEditValidationAndLatestRevision(t *testing.T) {
 	}
 }
 
+func TestMarkdownPreviewEndpointUsesServerRenderer(t *testing.T) {
+	sqlDB := openMigratedDB(t)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	queries := db.New(sqlDB)
+
+	e, err := New(Config{
+		Environment: "production",
+		JWTSecret:   "secret",
+		JWTCookie:   "wiki_token",
+		Queries:     queries,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	auth := &http.Cookie{Name: "wiki_token", Value: signedToken(t, "secret")}
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/markdown/preview",
+		strings.NewReader(`{"markdown":"# Heading\n[[My Page]]"}`),
+	)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req.AddCookie(auth)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d (%s)", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	html := payload["html"]
+	if !strings.Contains(html, "<h1 id=\"heading\">Heading</h1>") {
+		t.Fatalf("preview missing expected heading markup: %q", html)
+	}
+	if !strings.Contains(html, "href=\"/wiki/my_page\"") {
+		t.Fatalf("preview missing expected wikilink markup: %q", html)
+	}
+}
+
 func TestUploadEndpointSuccessAndFailurePaths(t *testing.T) {
 	sqlDB := openMigratedDB(t)
 	t.Cleanup(func() { _ = sqlDB.Close() })

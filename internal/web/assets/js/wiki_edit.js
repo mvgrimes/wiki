@@ -1,64 +1,5 @@
 const editorApp = document.getElementById("editor-app");
 
-function escapeHTML(input) {
-  return input
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-export function renderMarkdown(raw) {
-  const escaped = escapeHTML(raw);
-  const lines = escaped.split("\n");
-  const out = [];
-  let inList = false;
-
-  for (const line of lines) {
-    if (line.startsWith("- ")) {
-      if (!inList) {
-        out.push("<ul>");
-        inList = true;
-      }
-      out.push(`<li>${inlineMarkdown(line.slice(2))}</li>`);
-      continue;
-    }
-
-    if (inList) {
-      out.push("</ul>");
-      inList = false;
-    }
-
-    if (line.startsWith("### ")) {
-      out.push(`<h3>${inlineMarkdown(line.slice(4))}</h3>`);
-    } else if (line.startsWith("## ")) {
-      out.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`);
-    } else if (line.startsWith("# ")) {
-      out.push(`<h1>${inlineMarkdown(line.slice(2))}</h1>`);
-    } else if (line.trim() === "") {
-      out.push("<br />");
-    } else {
-      out.push(`<p>${inlineMarkdown(line)}</p>`);
-    }
-  }
-
-  if (inList) {
-    out.push("</ul>");
-  }
-
-  return out.join("\n");
-}
-
-function inlineMarkdown(text) {
-  return text
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" />')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
-}
-
 export function buildAttachmentMarkdown(payload) {
   const name = payload.file_name || "upload";
   const target = payload.storage_key || "";
@@ -66,6 +7,23 @@ export function buildAttachmentMarkdown(payload) {
     return `![${name}](${target})`;
   }
   return `[${name}](${target})`;
+}
+
+export async function previewMarkdown(markdown) {
+  const response = await fetch("/api/markdown/preview", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ markdown }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`preview failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  return payload.html || "";
 }
 
 export async function uploadFile(file, pageSlug, onProgress) {
@@ -124,20 +82,15 @@ function initWikiEditor() {
   }
 
   const textarea = document.getElementById("wiki-body");
-  const preview = document.getElementById("markdown-preview");
   const uploadInput = document.getElementById("upload-input");
   const dropzone = document.getElementById("upload-dropzone");
   const progress = document.getElementById("upload-progress");
   const status = document.getElementById("upload-status");
   const pageSlug = editorApp.dataset.pageSlug || "";
 
-  if (!textarea || !preview || !uploadInput || !dropzone || !progress || !status) {
+  if (!textarea || !uploadInput || !dropzone || !progress || !status) {
     return;
   }
-
-  const updatePreview = () => {
-    preview.innerHTML = renderMarkdown(textarea.value);
-  };
 
   const runUpload = async (files) => {
     if (!files || files.length === 0) {
@@ -154,7 +107,7 @@ function initWikiEditor() {
         });
         const snippet = buildAttachmentMarkdown(payload);
         insertAtCursor(textarea, snippet);
-        updatePreview();
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
         status.textContent = `Uploaded ${file.name}`;
       } catch (err) {
         status.textContent = `Error uploading ${file.name}: ${err.message}`;
@@ -166,7 +119,6 @@ function initWikiEditor() {
     }, 300);
   };
 
-  textarea.addEventListener("input", updatePreview);
   uploadInput.addEventListener("change", () => runUpload(uploadInput.files));
 
   const preventDefaults = (event) => {
@@ -193,8 +145,26 @@ function initWikiEditor() {
   dropzone.addEventListener("drop", (event) => {
     runUpload(event.dataTransfer.files);
   });
+}
 
-  updatePreview();
+if (typeof window !== "undefined") {
+  window.wikiEditor = function wikiEditor(el) {
+    return {
+      markdown: el?.dataset?.initialMarkdown || "",
+      previewHTML: "",
+      async init() {
+        await this.refreshPreview();
+      },
+      async refreshPreview() {
+        try {
+          this.previewHTML = await previewMarkdown(this.markdown);
+        } catch {
+          this.previewHTML = "<p>Preview unavailable.</p>";
+        }
+      },
+      pageSlug: el?.dataset?.pageSlug || "",
+    };
+  };
 }
 
 initWikiEditor();
