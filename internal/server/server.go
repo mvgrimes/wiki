@@ -236,7 +236,6 @@ func getWikiHandler(cfg Config) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		slog.Debug("rendered page", "slug", slug, "body", htmlBody)
 
 		return c.Render(http.StatusOK, "layout", wikiViewData{
 			Title:           page.Title,
