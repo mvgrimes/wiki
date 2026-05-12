@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -19,6 +20,12 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"go.abhg.dev/goldmark/mermaid"
+	"go.abhg.dev/goldmark/toc"
+	"go.abhg.dev/goldmark/wikilink"
 
 	"wiki/internal/auth"
 	"wiki/internal/db"
@@ -114,7 +121,7 @@ func New(cfg Config) (*echo.Echo, error) {
 type wikiViewData struct {
 	Title           string
 	Slug            string
-	Body            string
+	Body            template.HTML
 	UpdatedAt       string
 	ContentTemplate string
 }
@@ -159,14 +166,44 @@ func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
 			return c.String(http.StatusNotFound, "page has no revisions")
 		}
 
+		var buf bytes.Buffer
+		md := goldmark.New(
+			goldmark.WithParserOptions(
+				parser.WithAutoHeadingID(),
+			),
+			goldmark.WithExtensions(
+				extension.Table,
+				extension.Strikethrough,
+				extension.TaskList,
+				extension.Typographer,
+				&toc.Extender{},
+				&mermaid.Extender{},
+				&wikilink.Extender{
+					Resolver: CustomResolver,
+				},
+			),
+		)
+		if err := md.Convert([]byte(revisions[0].Body), &buf); err != nil {
+			panic(err)
+		}
+		slog.Debug("rendered page", "slug", slug, "body", buf.String())
+
 		return c.Render(http.StatusOK, "layout", wikiViewData{
 			Title:           page.Title,
 			Slug:            page.Slug,
-			Body:            revisions[0].Body,
+			Body:            template.HTML(buf.String()),
 			UpdatedAt:       revisions[0].CreatedAt,
 			ContentTemplate: "pages/wiki_view",
 		})
 	}
+}
+
+var CustomResolver wikilink.Resolver = customResolver{}
+
+type customResolver struct{}
+
+func (customResolver) ResolveWikilink(n *wikilink.Node) ([]byte, error) {
+	return []byte(fmt.Sprintf("/wiki/%s", n.Target)), nil
 }
 
 func postWikiHandler(queries *db.Queries) echo.HandlerFunc {

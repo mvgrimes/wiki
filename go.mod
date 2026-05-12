@@ -13,6 +13,10 @@ require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/spf13/cobra v1.9.1
+	github.com/yuin/goldmark v1.8.2
+	go.abhg.dev/goldmark/mermaid v0.6.0
+	go.abhg.dev/goldmark/toc v0.12.0
+	go.abhg.dev/goldmark/wikilink v0.6.0
 	modernc.org/sqlite v1.50.0
 )
 

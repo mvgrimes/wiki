@@ -2,7 +2,7 @@
     <main class="mx-auto max-w-5xl p-4">
       <h1>{{.Title}}</h1>
       <p><small>Path: /wiki/{{.Slug}} | Updated: {{.UpdatedAt}}</small></p>
-      <pre>{{.Body}}</pre>
+      <article class="prose">{{.Body}}</article>
       <p><a href="/wiki/{{.Slug}}/edit" class="btn btn-primary">Edit page</a></p>
     </main>
 {{end}}
