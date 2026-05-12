@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -26,17 +28,13 @@ func Execute() {
 var rootCmd = &cobra.Command{
 	Use:   "wiki",
 	Short: "Wiki service CLI",
-}
-
-func init() {
-	rootCmd.AddCommand(serverCmd)
-	rootCmd.AddCommand(migrateCmd)
-	rootCmd.AddCommand(bootstrapCmd)
+	Long:  "Wiki service CLI for running the HTTP server and operational commands.",
 }
 
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "Start HTTP server",
+	Short: "Start the wiki HTTP server",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {
@@ -57,9 +55,15 @@ var serverCmd = &cobra.Command{
 }
 
 var migrateCmd = &cobra.Command{
-	Use:   "migrate [up|down|status]",
+	Use:   "migrate",
 	Short: "Run database migrations",
-	Args:  cobra.ExactArgs(1),
+	Long:  "Run database schema migrations against the configured sqlite database.",
+}
+
+var migrateUpCmd = &cobra.Command{
+	Use:   "up",
+	Short: "Apply pending migrations",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		db, err := openDB()
 		if err != nil {
@@ -67,33 +71,72 @@ var migrateCmd = &cobra.Command{
 		}
 		defer db.Close()
 
-		goose.SetDialect("sqlite3")
-		switch args[0] {
-		case "up":
-			return goose.Up(db, "migrations")
-		case "down":
-			return goose.Down(db, "migrations")
-		case "status":
-			return goose.Status(db, "migrations")
-		default:
-			return fmt.Errorf("unsupported migrate command: %s", args[0])
+		return goose.Up(db, "migrations")
+	},
+}
+
+var migrateDownCmd = &cobra.Command{
+	Use:   "down",
+	Short: "Rollback the latest migration",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		db, err := openDB()
+		if err != nil {
+			return err
 		}
+		defer db.Close()
+
+		return goose.Down(db, "migrations")
+	},
+}
+
+var migrateStatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Show migration status",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		db, err := openDB()
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		return goose.Status(db, "migrations")
 	},
 }
 
 var bootstrapCmd = &cobra.Command{
 	Use:   "bootstrap",
-	Short: "Create local data dir and apply migrations",
+	Short: "Run migrate up and startup checks",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := os.MkdirAll("data", 0o755); err != nil {
+		dbPath, err := databasePath()
+		if err != nil {
 			return err
 		}
-		return migrateCmd.RunE(cmd, []string{"up"})
+
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+			return err
+		}
+
+		if err := migrateUpCmd.RunE(cmd, args); err != nil {
+			return err
+		}
+
+		db, err := openDB()
+		if err != nil {
+			return err
+		}
+		return db.Close()
 	},
 }
 
 func openDB() (*sql.DB, error) {
-	cfg, err := config.Load()
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return nil, err
+	}
+
+	dbPath, err := databasePath()
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +144,7 @@ func openDB() (*sql.DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	db, err := sql.Open("sqlite", cfg.DatabaseURL)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -112,4 +155,28 @@ func openDB() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func databasePath() (string, error) {
+	dbURL := strings.TrimSpace(os.Getenv("WIKI_DATABASE_URL"))
+	if dbURL == "" {
+		dbURL = "./data/wiki.db"
+	}
+
+	cleanPath := filepath.Clean(dbURL)
+	if cleanPath == "." {
+		return "", fmt.Errorf("WIKI_DATABASE_URL must point to a sqlite file path")
+	}
+
+	return cleanPath, nil
+}
+
+func init() {
+	migrateCmd.AddCommand(migrateUpCmd)
+	migrateCmd.AddCommand(migrateDownCmd)
+	migrateCmd.AddCommand(migrateStatusCmd)
+
+	rootCmd.AddCommand(serverCmd)
+	rootCmd.AddCommand(migrateCmd)
+	rootCmd.AddCommand(bootstrapCmd)
 }
