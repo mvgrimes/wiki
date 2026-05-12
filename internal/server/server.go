@@ -62,7 +62,24 @@ func New(cfg Config) (*echo.Echo, error) {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.RequestID())
-	e.Use(middleware.Logger())
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogStatus:    true,
+		LogURI:       true,
+		LogMethod:    true,
+		LogLatency:   true,
+		LogRequestID: true,
+		HandleError:  true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			slog.Info("http request",
+				"request_id", v.RequestID,
+				"method", v.Method,
+				"uri", v.URI,
+				"status", v.Status,
+				"latency", v.Latency.String(),
+			)
+			return nil
+		},
+	}))
 	e.Use(middleware.Recover())
 
 	renderer, err := newRenderer(cfg)
