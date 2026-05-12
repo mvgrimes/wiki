@@ -3,6 +3,7 @@ module wiki
 go 1.26.3
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/spf13/cobra v1.9.1

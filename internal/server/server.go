@@ -8,11 +8,15 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"wiki/internal/auth"
 )
 
 type Config struct {
-	Address string
-	Port    string
+	Address     string
+	Port        string
+	JWTSecret   string
+	SSOLoginURL string
+	JWTCookie   string
 }
 
 func ConfigFromEnv() Config {
@@ -26,11 +30,41 @@ func ConfigFromEnv() Config {
 		port = "8080"
 	}
 
-	return Config{Address: address, Port: port}
+	jwtSecret := os.Getenv("WIKI_JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "dev-secret"
+	}
+
+	ssoLoginURL := os.Getenv("WIKI_SSO_LOGIN_URL")
+	if ssoLoginURL == "" {
+		ssoLoginURL = "/sso/login"
+	}
+
+	jwtCookie := os.Getenv("WIKI_JWT_COOKIE")
+	if jwtCookie == "" {
+		jwtCookie = "wiki_token"
+	}
+
+	return Config{
+		Address:     address,
+		Port:        port,
+		JWTSecret:   jwtSecret,
+		SSOLoginURL: ssoLoginURL,
+		JWTCookie:   jwtCookie,
+	}
 }
 
 func Start(ctx context.Context, cfg Config) error {
 	e := echo.New()
+	e.Use(auth.Middleware(auth.Config{
+		JWTSecret:   cfg.JWTSecret,
+		CookieName:  cfg.JWTCookie,
+		SSOLoginURL: cfg.SSOLoginURL,
+		Skipper: func(c echo.Context) bool {
+			path := c.Path()
+			return path == "/healthz" || path == "/readyz"
+		},
+	}))
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.GET("/readyz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 
