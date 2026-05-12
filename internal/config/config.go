@@ -48,8 +48,8 @@ func Load() (*Config, error) {
 		ServerURL:         strings.TrimSpace(os.Getenv("WIKI_SERVER_URL")),
 		DatabaseURL:       envOrDefault("WIKI_DATABASE_URL", "./data/wiki.db"),
 		JWTSecret:         strings.TrimSpace(os.Getenv("WIKI_JWT_SECRET")),
-		SSOLoginURL:       envOrDefault("WIKI_SSO_LOGIN_URL", "/sso/login"),
-		JWTCookie:         envOrDefault("WIKI_JWT_COOKIE", "wiki_token"),
+		SSOLoginURL:       strings.TrimSpace(os.Getenv("WIKI_SSO_LOGIN_URL")),
+		JWTCookie:         envOrDefault("WIKI_JWT_COOKIE", "auth._token.local"),
 		S3Endpoint:        strings.TrimSpace(os.Getenv("WIKI_S3_ENDPOINT")),
 		S3Bucket:          envOrDefault("WIKI_S3_BUCKET", "wiki-uploads"),
 		S3Region:          envOrDefault("WIKI_AWS_REGION", "us-east-1"),
@@ -72,6 +72,9 @@ func (c *Config) Validate() error {
 	}
 	if strings.TrimSpace(c.JWTSecret) == "" {
 		missing = append(missing, "WIKI_JWT_SECRET")
+	}
+	if strings.TrimSpace(c.SSOLoginURL) == "" {
+		missing = append(missing, "WIKI_SSO_LOGIN_URL")
 	}
 
 	if len(missing) > 0 {
