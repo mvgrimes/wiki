@@ -1,8 +1,14 @@
 {{define "pages/wiki_view"}}
-    <main class="mx-auto max-w-5xl p-4">
-      <h1>{{.Title}}</h1>
-      <p><small>Path: /wiki/{{.Slug}} | Updated: {{.UpdatedAt}}</small></p>
-      <article class="prose">{{.Body}}</article>
-      <p><a href="/wiki/{{.Slug}}/edit" class="btn btn-primary">Edit page</a></p>
+    <main class="mx-auto max-w-5xl px-4 py-8 md:py-10">
+      <section class="rounded-2xl border border-base-300 bg-gradient-to-br from-base-100 via-base-100 to-base-200/70 p-6 shadow-sm md:p-8">
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Wiki entry</p>
+        <h1 class="mt-3 text-4xl font-black leading-tight text-balance md:text-5xl">{{.Title}}</h1>
+        <p class="mt-3 text-base text-base-content/75 md:text-lg">/wiki/{{.Slug}}<span class="mx-2 text-base-content/40">|</span>Updated {{.UpdatedAt}}</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="/wiki/{{.Slug}}/edit" class="btn btn-primary">Edit page</a>
+          <a href="/wiki/index" class="btn btn-outline">Back to index</a>
+        </div>
+      </section>
+      <article class="prose prose-lg mt-8 max-w-none rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm md:p-8">{{.Body}}</article>
     </main>
 {{end}}
