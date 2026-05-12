@@ -66,5 +66,14 @@ go test ./...
 - `go vet ./...`
 - `golangci-lint run ./...`
 - `sqlc generate`
+- `pnpm test:js`
 
 You can also use `just` shortcuts from `justfile` for common workflows.
+
+## Wiki Edit UI Manual Checklist
+
+- Open `/wiki/<slug>/edit` and confirm the live preview updates while typing (no full reload).
+- Use the file picker to upload an image and a non-image file; verify progress updates and success state.
+- Drag and drop a file onto the upload dropzone; verify success state and inserted markdown snippet.
+- Force an upload error (for example, with an unsupported file type) and verify the error message appears.
+- Repeat the picker and drag/drop checks in a mobile browser simulator and confirm behavior remains usable.

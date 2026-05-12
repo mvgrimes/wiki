@@ -6,6 +6,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Edit {{.Title}} - Wiki</title>
     <link rel="stylesheet" href="/assets/dist/app.css" />
+    <style>
+      #editor-app {
+        display: grid;
+        gap: 1rem;
+      }
+      #wiki-body {
+        width: 100%;
+        min-height: 16rem;
+      }
+      #markdown-preview {
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        min-height: 10rem;
+        padding: 0.75rem;
+      }
+      #upload-dropzone {
+        border: 2px dashed #6b7280;
+        border-radius: 0.25rem;
+        padding: 1rem;
+      }
+      #upload-dropzone[data-active="true"] {
+        background: #ecfeff;
+        border-color: #0e7490;
+      }
+      #upload-input {
+        max-width: 100%;
+      }
+    </style>
   </head>
   <body>
     <main>
@@ -13,11 +41,26 @@
       <p><small>Path: /wiki/{{.Slug}}</small></p>
       {{if .Error}}<p>{{.Error}}</p>{{end}}
       <form method="post" action="/wiki/{{.Slug}}/edit">
-        <textarea name="body" rows="20" cols="80">{{.Body}}</textarea>
+        <div id="editor-app" data-page-slug="{{.Slug}}">
+          <textarea id="wiki-body" name="body" rows="20" cols="80">{{.Body}}</textarea>
+          <section>
+            <h2>Live preview</h2>
+            <div id="markdown-preview" aria-live="polite"></div>
+          </section>
+          <section>
+            <h2>Attachments</h2>
+            <p>Drop files here or choose files to upload.</p>
+            <div id="upload-dropzone">Drop files here</div>
+            <input id="upload-input" type="file" multiple />
+            <progress id="upload-progress" value="0" max="100" hidden></progress>
+            <p id="upload-status" aria-live="polite"></p>
+          </section>
+        </div>
         <div>
           <button type="submit">Save revision</button>
         </div>
       </form>
+      <script type="module" src="/assets/js/wiki_edit.js"></script>
     </main>
   </body>
 </html>
