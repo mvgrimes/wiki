@@ -4,11 +4,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wiki</title>
+    <title>{{.Title}} - Wiki</title>
     <link rel="stylesheet" href="/assets/dist/app.css" />
   </head>
-  <body>
-    {{block "content" .}}{{end}}
+  <body class="min-h-screen bg-base-200 text-base-content">
+    {{renderContent .ContentTemplate .}}
   </body>
 </html>
 {{end}}

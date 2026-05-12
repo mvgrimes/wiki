@@ -1,19 +1,8 @@
 {{define "pages/wiki_view"}}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{.Title}} - Wiki</title>
-    <link rel="stylesheet" href="/assets/dist/app.css" />
-  </head>
-  <body>
-    <main>
+    <main class="mx-auto max-w-5xl p-4">
       <h1>{{.Title}}</h1>
       <p><small>Path: /wiki/{{.Slug}} | Updated: {{.UpdatedAt}}</small></p>
       <pre>{{.Body}}</pre>
-      <p><a href="/wiki/{{.Slug}}/edit">Edit page</a></p>
+      <p><a href="/wiki/{{.Slug}}/edit" class="btn btn-primary">Edit page</a></p>
     </main>
-  </body>
-</html>
 {{end}}

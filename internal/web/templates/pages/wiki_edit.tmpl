@@ -1,11 +1,30 @@
 {{define "pages/wiki_edit"}}
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Edit {{.Title}} - Wiki</title>
-    <link rel="stylesheet" href="/assets/dist/app.css" />
+    <main class="mx-auto max-w-5xl p-4">
+      <h1>Edit {{.Title}}</h1>
+      <p><small>Path: /wiki/{{.Slug}}</small></p>
+      {{if .Error}}<p>{{.Error}}</p>{{end}}
+      <form method="post" action="/wiki/{{.Slug}}/edit">
+        <div id="editor-app" data-page-slug="{{.Slug}}">
+          <textarea id="wiki-body" name="body" rows="20" cols="80" class="textarea textarea-bordered">{{.Body}}</textarea>
+          <section>
+            <h2 class="text-2xl">Live preview</h2>
+            <div id="markdown-preview" aria-live="polite"></div>
+          </section>
+          <section>
+            <h2 class="text-2xl">Attachments</h2>
+            <p>Drop files here or choose files to upload.</p>
+            <div id="upload-dropzone">Drop files here</div>
+            <input id="upload-input" type="file" multiple />
+            <progress id="upload-progress" value="0" max="100" hidden></progress>
+            <p id="upload-status" aria-live="polite"></p>
+          </section>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-primary">Save revision</button>
+        </div>
+      </form>
+      <script type="module" src="/assets/js/wiki_edit.js"></script>
+    </main>
     <style>
       #editor-app {
         display: grid;
@@ -34,34 +53,4 @@
         max-width: 100%;
       }
     </style>
-  </head>
-  <body>
-    <main>
-      <h1>Edit {{.Title}}</h1>
-      <p><small>Path: /wiki/{{.Slug}}</small></p>
-      {{if .Error}}<p>{{.Error}}</p>{{end}}
-      <form method="post" action="/wiki/{{.Slug}}/edit">
-        <div id="editor-app" data-page-slug="{{.Slug}}">
-          <textarea id="wiki-body" name="body" rows="20" cols="80">{{.Body}}</textarea>
-          <section>
-            <h2>Live preview</h2>
-            <div id="markdown-preview" aria-live="polite"></div>
-          </section>
-          <section>
-            <h2>Attachments</h2>
-            <p>Drop files here or choose files to upload.</p>
-            <div id="upload-dropzone">Drop files here</div>
-            <input id="upload-input" type="file" multiple />
-            <progress id="upload-progress" value="0" max="100" hidden></progress>
-            <p id="upload-status" aria-live="polite"></p>
-          </section>
-        </div>
-        <div>
-          <button type="submit">Save revision</button>
-        </div>
-      </form>
-      <script type="module" src="/assets/js/wiki_edit.js"></script>
-    </main>
-  </body>
-</html>
 {{end}}

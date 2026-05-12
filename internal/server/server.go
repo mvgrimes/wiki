@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -14,7 +15,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -99,7 +99,7 @@ func New(cfg Config) (*echo.Echo, error) {
 	}))
 
 	e.GET("/", func(c echo.Context) error {
-		return c.Render(http.StatusOK, "pages/home", map[string]any{"Title": "Wiki"})
+		return c.Render(http.StatusOK, "layout", map[string]any{"Title": "Wiki", "ContentTemplate": "pages/home"})
 	})
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.GET("/readyz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
@@ -112,17 +112,19 @@ func New(cfg Config) (*echo.Echo, error) {
 }
 
 type wikiViewData struct {
-	Title     string
-	Slug      string
-	Body      string
-	UpdatedAt string
+	Title           string
+	Slug            string
+	Body            string
+	UpdatedAt       string
+	ContentTemplate string
 }
 
 type wikiEditData struct {
-	Title string
-	Slug  string
-	Body  string
-	Error string
+	Title           string
+	Slug            string
+	Body            string
+	Error           string
+	ContentTemplate string
 }
 
 func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
@@ -157,11 +159,12 @@ func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
 			return c.String(http.StatusNotFound, "page has no revisions")
 		}
 
-		return c.Render(http.StatusOK, "pages/wiki_view", wikiViewData{
-			Title:     page.Title,
-			Slug:      page.Slug,
-			Body:      revisions[0].Body,
-			UpdatedAt: revisions[0].CreatedAt,
+		return c.Render(http.StatusOK, "layout", wikiViewData{
+			Title:           page.Title,
+			Slug:            page.Slug,
+			Body:            revisions[0].Body,
+			UpdatedAt:       revisions[0].CreatedAt,
+			ContentTemplate: "pages/wiki_view",
 		})
 	}
 }
@@ -190,7 +193,7 @@ func renderWikiEdit(c echo.Context, queries *db.Queries, routePath string) error
 		return c.String(http.StatusNotFound, "page not found")
 	}
 
-	data := wikiEditData{Title: titleFromSlug(slug), Slug: slug}
+	data := wikiEditData{Title: titleFromSlug(slug), Slug: slug, ContentTemplate: "pages/wiki_edit"}
 
 	page, err := queries.GetPageBySlug(c.Request().Context(), slug)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -207,17 +210,18 @@ func renderWikiEdit(c echo.Context, queries *db.Queries, routePath string) error
 		}
 	}
 
-	return c.Render(http.StatusOK, "pages/wiki_edit", data)
+	return c.Render(http.StatusOK, "layout", data)
 }
 
 func saveWikiRevision(c echo.Context, queries *db.Queries, slug string) error {
 	body := c.FormValue("body")
 	if strings.TrimSpace(body) == "" {
-		return c.Render(http.StatusUnprocessableEntity, "pages/wiki_edit", wikiEditData{
-			Title: titleFromSlug(slug),
-			Slug:  slug,
-			Body:  body,
-			Error: "body is required",
+		return c.Render(http.StatusUnprocessableEntity, "layout", wikiEditData{
+			Title:           titleFromSlug(slug),
+			Slug:            slug,
+			Body:            body,
+			Error:           "body is required",
+			ContentTemplate: "pages/wiki_edit",
 		})
 	}
 
@@ -304,13 +308,30 @@ func newRenderer(cfg Config) (echo.Renderer, error) {
 }
 
 func parseTemplates(cfg Config) (*template.Template, error) {
+	var t *template.Template
+
 	tmplFS := templateFS(cfg)
 	paths, err := templatePaths(tmplFS, ".")
 	if err != nil {
 		return nil, err
 	}
 
-	t := template.New("wiki")
+	funcs := template.FuncMap{
+		"renderContent": func(name string, data any) (template.HTML, error) {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				return "", fmt.Errorf("missing content template name")
+			}
+
+			var b strings.Builder
+			if err := t.ExecuteTemplate(&b, name, data); err != nil {
+				return "", err
+			}
+			return template.HTML(b.String()), nil
+		},
+	}
+
+	t = template.New("wiki").Funcs(funcs)
 	for _, path := range paths {
 		content, readErr := fs.ReadFile(tmplFS, path)
 		if readErr != nil {
