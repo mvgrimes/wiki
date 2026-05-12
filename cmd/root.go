@@ -13,6 +13,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
+	"wiki/migrations"
 	"wiki/internal/config"
 	"wiki/internal/logger"
 	"wiki/internal/server"
@@ -72,7 +73,8 @@ var migrateUpCmd = &cobra.Command{
 		}
 		defer db.Close()
 
-		return goose.Up(db, "migrations")
+		goose.SetBaseFS(migrations.FS())
+		return goose.Up(db, ".")
 	},
 }
 
@@ -87,7 +89,8 @@ var migrateDownCmd = &cobra.Command{
 		}
 		defer db.Close()
 
-		return goose.Down(db, "migrations")
+		goose.SetBaseFS(migrations.FS())
+		return goose.Down(db, ".")
 	},
 }
 
@@ -102,7 +105,8 @@ var migrateStatusCmd = &cobra.Command{
 		}
 		defer db.Close()
 
-		return goose.Status(db, "migrations")
+		goose.SetBaseFS(migrations.FS())
+		return goose.Status(db, ".")
 	},
 }
 
