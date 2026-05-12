@@ -1,0 +1,16 @@
+{{define "pages/wiki_missing"}}
+    <main class="mx-auto max-w-3xl px-4 py-10 md:py-14">
+      <section class="rounded-2xl border border-base-300 bg-gradient-to-br from-base-100 via-base-100 to-warning/10 p-6 shadow-sm md:p-8">
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-warning">Page not yet created</p>
+        <h1 class="mt-3 text-3xl font-black leading-tight text-balance md:text-4xl">This page does not exist yet</h1>
+        <p class="mt-4 text-base text-base-content/75 md:text-lg">
+          No page has been created at <span class="rounded bg-base-200 px-2 py-1 font-mono text-sm">/wiki/{{.Slug}}</span>.
+        </p>
+        <p class="mt-2 text-base text-base-content/75">Would you like to create it now?</p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="/wiki/{{.Slug}}/edit" class="btn btn-primary">Create this page</a>
+          <a href="/wiki/index" class="btn btn-outline">Back to index</a>
+        </div>
+      </section>
+    </main>
+{{end}}

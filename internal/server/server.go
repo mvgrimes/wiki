@@ -210,7 +210,15 @@ func getWikiHandler(cfg Config) echo.HandlerFunc {
 
 		page, err := queries.GetPageBySlug(c.Request().Context(), slug)
 		if errors.Is(err, sql.ErrNoRows) {
-			return c.String(http.StatusNotFound, "page not found")
+			return c.Render(http.StatusOK, "layout", wikiMissingData{
+				Title:           titleFromSlug(slug),
+				Slug:            slug,
+				Branding:        cfg.Branding,
+				LogoURL:         cfg.LogoURL,
+				LogoHeroURL:     cfg.LogoHeroURL,
+				FaviconURL:      cfg.FaviconURL,
+				ContentTemplate: "pages/wiki_missing",
+			})
 		}
 		if err != nil {
 			return err

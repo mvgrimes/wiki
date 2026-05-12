@@ -156,8 +156,11 @@ func TestWikiPageLifecycleRoutes(t *testing.T) {
 	missingReq.AddCookie(auth)
 	missingRec := httptest.NewRecorder()
 	e.ServeHTTP(missingRec, missingReq)
-	if missingRec.Code != http.StatusNotFound {
-		t.Fatalf("missing page status = %d, want %d", missingRec.Code, http.StatusNotFound)
+	if missingRec.Code != http.StatusOK {
+		t.Fatalf("missing page status = %d, want %d", missingRec.Code, http.StatusOK)
+	}
+	if !strings.Contains(missingRec.Body.String(), "Create this page") {
+		t.Fatalf("missing page response missing create CTA: %q", missingRec.Body.String())
 	}
 
 	editReq := httptest.NewRequest(http.MethodGet, "/wiki/guides/getting-started/edit", nil)
