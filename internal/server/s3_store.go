@@ -13,21 +13,31 @@ import (
 )
 
 type s3PutClient interface {
-	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	PutObject(
+		ctx context.Context,
+		params *s3.PutObjectInput,
+		optFns ...func(*s3.Options),
+	) (*s3.PutObjectOutput, error)
 }
 
 type S3ObjectStore struct {
 	client s3PutClient
 }
 
-func NewS3ObjectStore(region, endpoint, accessKeyID, secretAccessKey string, forcePathStyle bool) (*S3ObjectStore, error) {
+func NewS3ObjectStore(
+	region, endpoint, accessKeyID, secretAccessKey string,
+	forcePathStyle bool,
+) (*S3ObjectStore, error) {
 	if strings.TrimSpace(region) == "" {
 		return nil, fmt.Errorf("s3 region is required")
 	}
 
-	awsCfg, err := config.LoadDefaultConfig(context.Background(),
+	awsCfg, err := config.LoadDefaultConfig(
+		context.Background(),
 		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""),
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -43,7 +53,12 @@ func NewS3ObjectStore(region, endpoint, accessKeyID, secretAccessKey string, for
 	return &S3ObjectStore{client: client}, nil
 }
 
-func (s *S3ObjectStore) PutObject(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error {
+func (s *S3ObjectStore) PutObject(
+	ctx context.Context,
+	bucket, key, contentType string,
+	body io.Reader,
+	size int64,
+) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(bucket),
 		Key:           aws.String(key),

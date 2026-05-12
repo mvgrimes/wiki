@@ -19,22 +19,23 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
 	"wiki/internal/auth"
 	"wiki/internal/db"
 	"wiki/internal/web"
 )
 
 type Config struct {
-	Address      string
-	Port         int
-	Environment  string
-	TemplatesDir string
-	JWTSecret    string
-	SSOLoginURL  string
-	JWTCookie    string
-	Queries      *db.Queries
-	UploadStore  ObjectStore
-	UploadBucket string
+	Address        string
+	Port           int
+	Environment    string
+	TemplatesDir   string
+	JWTSecret      string
+	SSOLoginURL    string
+	JWTCookie      string
+	Queries        *db.Queries
+	UploadStore    ObjectStore
+	UploadBucket   string
 	UploadMaxBytes int64
 }
 
@@ -206,14 +207,20 @@ func saveWikiRevision(c echo.Context, queries *db.Queries, slug string) error {
 	ctx := c.Request().Context()
 	page, err := queries.GetPageBySlug(ctx, slug)
 	if errors.Is(err, sql.ErrNoRows) {
-		page, err = queries.CreatePage(ctx, db.CreatePageParams{Slug: slug, Title: titleFromSlug(slug)})
+		page, err = queries.CreatePage(
+			ctx,
+			db.CreatePageParams{Slug: slug, Title: titleFromSlug(slug)},
+		)
 	}
 	if err != nil {
 		return err
 	}
 
 	author := "unknown"
-	if principal, ok := auth.PrincipalFromContext(c); ok && strings.TrimSpace(principal.Subject) != "" {
+	if principal, ok := auth.PrincipalFromContext(
+		c,
+	); ok &&
+		strings.TrimSpace(principal.Subject) != "" {
 		author = principal.Subject
 	}
 
@@ -250,11 +257,21 @@ func titleFromSlug(slug string) string {
 }
 
 type templateRenderer struct {
-	templates *template.Template
+	templates   *template.Template
+	development bool
+	cfg         Config
 }
 
 func (r templateRenderer) Render(w io.Writer, name string, data any, _ echo.Context) error {
-	return r.templates.ExecuteTemplate(w, name, data)
+	t := r.templates
+	if r.development {
+		var err error
+		t, err = parseTemplates(r.cfg)
+		if err != nil {
+			return err
+		}
+	}
+	return t.ExecuteTemplate(w, name, data)
 }
 
 func newRenderer(cfg Config) (echo.Renderer, error) {
@@ -262,7 +279,11 @@ func newRenderer(cfg Config) (echo.Renderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return templateRenderer{templates: t}, nil
+	return templateRenderer{
+		templates:   t,
+		development: strings.EqualFold(cfg.Environment, "development"),
+		cfg:         cfg,
+	}, nil
 }
 
 func parseTemplates(cfg Config) (*template.Template, error) {

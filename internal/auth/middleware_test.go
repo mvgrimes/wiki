@@ -13,7 +13,10 @@ import (
 func TestMiddleware_AllowsBearerTokenAndSetsPrincipal(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/pages", nil)
-	req.Header.Set(echo.HeaderAuthorization, "Bearer "+signedToken(t, "secret", time.Now().Add(time.Hour)))
+	req.Header.Set(
+		echo.HeaderAuthorization,
+		"Bearer "+signedToken(t, "secret", time.Now().Add(time.Hour)),
+	)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -42,7 +45,12 @@ func TestMiddleware_AllowsBearerTokenAndSetsPrincipal(t *testing.T) {
 func TestMiddleware_AllowsCookieToken(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/pages", nil)
-	req.AddCookie(&http.Cookie{Name: "wiki_token", Value: signedToken(t, "secret", time.Now().Add(time.Hour))})
+	req.AddCookie(
+		&http.Cookie{
+			Name:  "wiki_token",
+			Value: signedToken(t, "secret", time.Now().Add(time.Hour)),
+		},
+	)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -62,7 +70,10 @@ func TestMiddleware_AllowsCookieToken(t *testing.T) {
 func TestMiddleware_ExpiredTokenGetsUnauthorizedForAPI(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/pages", nil)
-	req.Header.Set(echo.HeaderAuthorization, "Bearer "+signedToken(t, "secret", time.Now().Add(-time.Hour)))
+	req.Header.Set(
+		echo.HeaderAuthorization,
+		"Bearer "+signedToken(t, "secret", time.Now().Add(-time.Hour)),
+	)
 	req.Header.Set(echo.HeaderAccept, "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -83,14 +94,21 @@ func TestMiddleware_BadSignatureRedirectsForHTML(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/pages/abc", nil)
 	req.Header.Set(echo.HeaderAccept, "text/html")
-	req.Header.Set(echo.HeaderAuthorization, "Bearer "+signedToken(t, "wrong-secret", time.Now().Add(time.Hour)))
+	req.Header.Set(
+		echo.HeaderAuthorization,
+		"Bearer "+signedToken(t, "wrong-secret", time.Now().Add(time.Hour)),
+	)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	h := Middleware(Config{JWTSecret: "secret", SSOLoginURL: "/sso/login"})(func(c echo.Context) error {
-		t.Fatal("next should not be called")
-		return nil
-	})
+	h := Middleware(
+		Config{JWTSecret: "secret", SSOLoginURL: "/sso/login"},
+	)(
+		func(c echo.Context) error {
+			t.Fatal("next should not be called")
+			return nil
+		},
+	)
 
 	_ = h(c)
 

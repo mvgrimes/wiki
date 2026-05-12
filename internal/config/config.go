@@ -21,12 +21,12 @@ type Config struct {
 	SSOLoginURL string
 	JWTCookie   string
 
-	S3Endpoint       string
-	S3Bucket         string
-	S3Region         string
-	S3AccessKeyID    string
+	S3Endpoint        string
+	S3Bucket          string
+	S3Region          string
+	S3AccessKeyID     string
 	S3SecretAccessKey string
-	S3ForcePathStyle bool
+	S3ForcePathStyle  bool
 }
 
 func Load() (*Config, error) {

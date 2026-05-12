@@ -13,6 +13,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
+
 	"wiki/internal/config"
 	"wiki/internal/db"
 	"wiki/internal/logger"
@@ -58,7 +59,12 @@ var serverCmd = &cobra.Command{
 		defer sqlDB.Close()
 
 		slog.SetDefault(logger.New(cfg.LogLevel))
-		slog.Info("starting server", "address", cfg.ServerAddress, "port", cfg.ServerPort, "environment", cfg.Environment)
+		slog.Info(
+			"starting server",
+			"address", cfg.ServerAddress,
+			"port", cfg.ServerPort,
+			"environment", cfg.Environment,
+		)
 
 		return server.Start(cmd.Context(), server.Config{
 			Address:        cfg.ServerAddress,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
+
 	"wiki/internal/db"
 	"wiki/migrations"
 )
@@ -19,7 +20,8 @@ func TestMigrationsCreateExpectedTables(t *testing.T) {
 	tables := []string{"pages", "revisions", "attachments"}
 	for _, table := range tables {
 		var name string
-		err := sqlDB.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&name)
+		err := sqlDB.QueryRow("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table).
+			Scan(&name)
 		if err != nil {
 			t.Fatalf("expected table %q to exist: %v", table, err)
 		}

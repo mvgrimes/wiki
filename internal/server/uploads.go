@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+
 	"wiki/internal/db"
 )
 
@@ -25,7 +26,12 @@ const defaultUploadMaxBytes int64 = 10 << 20
 var safeObjectChars = regexp.MustCompile(`[^a-z0-9._-]+`)
 
 type ObjectStore interface {
-	PutObject(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error
+	PutObject(
+		ctx context.Context,
+		bucket, key, contentType string,
+		body io.Reader,
+		size int64,
+	) error
 }
 
 func uploadHandler(cfg Config) echo.HandlerFunc {
@@ -35,7 +41,8 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 	}
 
 	return func(c echo.Context) error {
-		if cfg.Queries == nil || cfg.UploadStore == nil || strings.TrimSpace(cfg.UploadBucket) == "" {
+		if cfg.Queries == nil || cfg.UploadStore == nil ||
+			strings.TrimSpace(cfg.UploadBucket) == "" {
 			return uploadError(c, http.StatusServiceUnavailable, "upload service is not configured")
 		}
 
@@ -50,7 +57,10 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 
 		page, err := cfg.Queries.GetPageBySlug(c.Request().Context(), slug)
 		if errors.Is(err, sql.ErrNoRows) {
-			page, err = cfg.Queries.CreatePage(c.Request().Context(), db.CreatePageParams{Slug: slug, Title: titleFromSlug(slug)})
+			page, err = cfg.Queries.CreatePage(
+				c.Request().Context(),
+				db.CreatePageParams{Slug: slug, Title: titleFromSlug(slug)},
+			)
 		}
 		if err != nil {
 			return err
@@ -67,7 +77,14 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 		}
 
 		key := buildObjectKey(slug, fileHeader.Filename, data)
-		if err := cfg.UploadStore.PutObject(c.Request().Context(), cfg.UploadBucket, key, contentType, bytes.NewReader(data), int64(len(data))); err != nil {
+		if err := cfg.UploadStore.PutObject(
+			c.Request().Context(),
+			cfg.UploadBucket,
+			key,
+			contentType,
+			bytes.NewReader(data),
+			int64(len(data)),
+		); err != nil {
 			return uploadError(c, http.StatusBadGateway, "failed to store upload")
 		}
 
@@ -76,14 +93,17 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 			return uploadError(c, http.StatusBadRequest, err.Error())
 		}
 
-		attachment, err := cfg.Queries.CreateAttachment(c.Request().Context(), db.CreateAttachmentParams{
-			PageID:      page.ID,
-			RevisionID:  revisionID,
-			FileName:    sanitizeFilename(fileHeader.Filename),
-			ContentType: contentType,
-			SizeBytes:   int64(len(data)),
-			StorageKey:  key,
-		})
+		attachment, err := cfg.Queries.CreateAttachment(
+			c.Request().Context(),
+			db.CreateAttachmentParams{
+				PageID:      page.ID,
+				RevisionID:  revisionID,
+				FileName:    sanitizeFilename(fileHeader.Filename),
+				ContentType: contentType,
+				SizeBytes:   int64(len(data)),
+				StorageKey:  key,
+			},
+		)
 		if err != nil {
 			return err
 		}
@@ -129,7 +149,12 @@ func readAndValidateUpload(header *multipart.FileHeader, maxBytes int64) (string
 
 func allowedContentType(contentType string) bool {
 	switch contentType {
-	case "image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf", "text/plain; charset=utf-8":
+	case "image/png",
+		"image/jpeg",
+		"image/webp",
+		"image/gif",
+		"application/pdf",
+		"text/plain; charset=utf-8":
 		return true
 	default:
 		return false
