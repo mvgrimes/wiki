@@ -52,6 +52,8 @@ var serverCmd = &cobra.Command{
 			Environment:    cfg.Environment,
 			Branding:       cfg.Branding,
 			LogoURL:        cfg.LogoURL,
+			LogoHeroURL:    cfg.LogoHeroURL,
+			FaviconURL:     cfg.FaviconURL,
 			JWTSecret:      cfg.JWTSecret,
 			SSOLoginURL:    cfg.SSOLoginURL,
 			JWTCookie:      cfg.JWTCookie,

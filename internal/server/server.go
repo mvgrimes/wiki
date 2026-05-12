@@ -38,6 +38,8 @@ type Config struct {
 	Environment    string
 	Branding       string
 	LogoURL        string
+	LogoHeroURL    string
+	FaviconURL     string
 	TemplatesDir   string
 	JWTSecret      string
 	SSOLoginURL    string
@@ -129,6 +131,8 @@ func New(cfg Config) (*echo.Echo, error) {
 			Title:           "Wiki",
 			Branding:        cfg.Branding,
 			LogoURL:         cfg.LogoURL,
+			LogoHeroURL:     cfg.LogoHeroURL,
+			FaviconURL:      cfg.FaviconURL,
 			ContentTemplate: "pages/home",
 		})
 	})
@@ -150,6 +154,8 @@ type wikiViewData struct {
 	UpdatedAt       string
 	Branding        string
 	LogoURL         string
+	LogoHeroURL     string
+	FaviconURL      string
 	ContentTemplate string
 }
 
@@ -160,6 +166,18 @@ type wikiEditData struct {
 	Error           string
 	Branding        string
 	LogoURL         string
+	LogoHeroURL     string
+	FaviconURL      string
+	ContentTemplate string
+}
+
+type wikiMissingData struct {
+	Title           string
+	Slug            string
+	Branding        string
+	LogoURL         string
+	LogoHeroURL     string
+	FaviconURL      string
 	ContentTemplate string
 }
 
@@ -168,6 +186,8 @@ type homeData struct {
 	Slug            string
 	Branding        string
 	LogoURL         string
+	LogoHeroURL     string
+	FaviconURL      string
 	ContentTemplate string
 }
 
@@ -217,6 +237,8 @@ func getWikiHandler(cfg Config) echo.HandlerFunc {
 			UpdatedAt:       revisions[0].CreatedAt,
 			Branding:        cfg.Branding,
 			LogoURL:         cfg.LogoURL,
+			LogoHeroURL:     cfg.LogoHeroURL,
+			FaviconURL:      cfg.FaviconURL,
 			ContentTemplate: "pages/wiki_view",
 		})
 	}
@@ -315,6 +337,8 @@ func renderWikiEdit(c echo.Context, cfg Config, routePath string) error {
 		Slug:            slug,
 		Branding:        cfg.Branding,
 		LogoURL:         cfg.LogoURL,
+		LogoHeroURL:     cfg.LogoHeroURL,
+		FaviconURL:      cfg.FaviconURL,
 		ContentTemplate: "pages/wiki_edit",
 	}
 
@@ -347,6 +371,8 @@ func saveWikiRevision(c echo.Context, cfg Config, slug string) error {
 			Error:           "body is required",
 			Branding:        cfg.Branding,
 			LogoURL:         cfg.LogoURL,
+			LogoHeroURL:     cfg.LogoHeroURL,
+			FaviconURL:      cfg.FaviconURL,
 			ContentTemplate: "pages/wiki_edit",
 		})
 	}
@@ -454,6 +480,15 @@ func parseTemplates(cfg Config) (*template.Template, error) {
 				return "", err
 			}
 			return template.HTML(b.String()), nil
+		},
+		"attr": func(s string) template.HTMLAttr {
+			return template.HTMLAttr(s)
+		},
+		"safe": func(s string) template.HTML {
+			return template.HTML(s)
+		},
+		"url": func(s string) template.URL {
+			return template.URL(s)
 		},
 	}
 

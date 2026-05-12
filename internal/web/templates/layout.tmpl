@@ -5,13 +5,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{.Title}} - Wiki</title>
+    {{if .FaviconURL}}<link rel="icon" href="{{.FaviconURL | url}}" />{{end}}
     <link rel="stylesheet" href="/assets/dist/app.css" />
   </head>
   <body class="min-h-screen bg-base-200 text-base-content">
     <header class="navbar bg-base-100 shadow-sm">
       <div class="mx-auto flex w-full max-w-5xl items-center gap-3 px-4">
         <a href="/wiki/index" class="btn btn-ghost px-2 text-lg normal-case">
-          {{if .LogoURL}}<img src="{{.LogoURL}}" alt="{{.Branding}} logo" class="h-8 w-8 rounded" />{{end}}
+          {{if .LogoURL}}<img src="{{.LogoURL | url}}" alt="{{.Branding}} logo" class="h-8 w-8 rounded" />{{end}}
           <span>{{.Branding}}</span>
         </a>
         <div class="ml-auto flex items-center gap-2">

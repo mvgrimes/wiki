@@ -1,7 +1,9 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +14,8 @@ type Config struct {
 	LogLevel    string
 	Branding    string
 	LogoURL     string
+	LogoHeroURL string
+	FaviconURL  string
 
 	ServerAddress string
 	ServerPort    int
@@ -46,7 +50,9 @@ func Load() (*Config, error) {
 		Environment:       envOrDefault("WIKI_ENVIRONMENT", "development"),
 		LogLevel:          envOrDefault("WIKI_LOG_LEVEL", "info"),
 		Branding:          envOrDefault("WIKI_BRANDING", "Wiki"),
-		LogoURL:           strings.TrimSpace(os.Getenv("WIKI_LOGO")),
+		LogoURL:           imageEnvOrDataURL("WIKI_LOGO"),
+		LogoHeroURL:       imageEnvOrDataURL("WIKI_LOGO_HERO"),
+		FaviconURL:        imageEnvOrDataURL("WIKI_FAVICON"),
 		ServerAddress:     envOrDefault("WIKI_SERVER_ADDRESS", "0.0.0.0"),
 		ServerPort:        serverPort,
 		ServerURL:         strings.TrimSpace(os.Getenv("WIKI_SERVER_URL")),
@@ -67,6 +73,29 @@ func Load() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func imageEnvOrDataURL(key string) string {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return ""
+	}
+
+	lower := strings.ToLower(v)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "data:") {
+		return v
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		return v
+	}
+	mimeType := http.DetectContentType(decoded)
+	if mimeType == "application/octet-stream" {
+		mimeType = "image/png"
+	}
+
+	return "data:" + mimeType + ";base64," + v
 }
 
 func (c *Config) Validate() error {
