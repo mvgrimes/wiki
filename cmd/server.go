@@ -50,6 +50,8 @@ var serverCmd = &cobra.Command{
 			Address:        cfg.ServerAddress,
 			Port:           cfg.ServerPort,
 			Environment:    cfg.Environment,
+			Branding:       cfg.Branding,
+			LogoURL:        cfg.LogoURL,
 			JWTSecret:      cfg.JWTSecret,
 			SSOLoginURL:    cfg.SSOLoginURL,
 			JWTCookie:      cfg.JWTCookie,

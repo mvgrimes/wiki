@@ -10,6 +10,8 @@ import (
 type Config struct {
 	Environment string
 	LogLevel    string
+	Branding    string
+	LogoURL     string
 
 	ServerAddress string
 	ServerPort    int
@@ -43,6 +45,8 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Environment:       envOrDefault("WIKI_ENVIRONMENT", "development"),
 		LogLevel:          envOrDefault("WIKI_LOG_LEVEL", "info"),
+		Branding:          envOrDefault("WIKI_BRANDING", "Wiki"),
+		LogoURL:           strings.TrimSpace(os.Getenv("WIKI_LOGO")),
 		ServerAddress:     envOrDefault("WIKI_SERVER_ADDRESS", "0.0.0.0"),
 		ServerPort:        serverPort,
 		ServerURL:         strings.TrimSpace(os.Getenv("WIKI_SERVER_URL")),

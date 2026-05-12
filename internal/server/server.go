@@ -36,6 +36,8 @@ type Config struct {
 	Address        string
 	Port           int
 	Environment    string
+	Branding       string
+	LogoURL        string
 	TemplatesDir   string
 	JWTSecret      string
 	SSOLoginURL    string
@@ -66,6 +68,10 @@ func Start(ctx context.Context, cfg Config) error {
 }
 
 func New(cfg Config) (*echo.Echo, error) {
+	if strings.TrimSpace(cfg.Branding) == "" {
+		cfg.Branding = "Wiki"
+	}
+
 	e := echo.New()
 	e.HideBanner = true
 	// Is this necessary?
@@ -119,13 +125,18 @@ func New(cfg Config) (*echo.Echo, error) {
 	}))
 
 	e.GET("/", func(c echo.Context) error {
-		return c.Render(http.StatusOK, "layout", map[string]any{"Title": "Wiki", "ContentTemplate": "pages/home"})
+		return c.Render(http.StatusOK, "layout", homeData{
+			Title:           "Wiki",
+			Branding:        cfg.Branding,
+			LogoURL:         cfg.LogoURL,
+			ContentTemplate: "pages/home",
+		})
 	})
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.GET("/readyz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.Static("/assets", "internal/web/assets")
-	e.GET("/wiki/*", getWikiHandler(cfg.Queries))
-	e.POST("/wiki/*", postWikiHandler(cfg.Queries))
+	e.GET("/wiki/*", getWikiHandler(cfg))
+	e.POST("/wiki/*", postWikiHandler(cfg))
 	e.POST("/api/markdown/preview", markdownPreviewHandler())
 	e.POST("/api/uploads", uploadHandler(cfg))
 
@@ -137,6 +148,8 @@ type wikiViewData struct {
 	Slug            string
 	Body            template.HTML
 	UpdatedAt       string
+	Branding        string
+	LogoURL         string
 	ContentTemplate string
 }
 
@@ -145,18 +158,29 @@ type wikiEditData struct {
 	Slug            string
 	Body            string
 	Error           string
+	Branding        string
+	LogoURL         string
 	ContentTemplate string
 }
 
-func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
+type homeData struct {
+	Title           string
+	Slug            string
+	Branding        string
+	LogoURL         string
+	ContentTemplate string
+}
+
+func getWikiHandler(cfg Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		queries := cfg.Queries
 		if queries == nil {
 			return c.String(http.StatusInternalServerError, "wiki storage not configured")
 		}
 
 		routePath := strings.Trim(c.Param("*"), "/")
 		if strings.HasSuffix(routePath, "/edit") {
-			return renderWikiEdit(c, queries, strings.TrimSuffix(routePath, "/edit"))
+			return renderWikiEdit(c, cfg, strings.TrimSuffix(routePath, "/edit"))
 		}
 
 		slug, err := normalizeWikiSlug(routePath)
@@ -191,6 +215,8 @@ func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
 			Slug:            page.Slug,
 			Body:            template.HTML(htmlBody),
 			UpdatedAt:       revisions[0].CreatedAt,
+			Branding:        cfg.Branding,
+			LogoURL:         cfg.LogoURL,
 			ContentTemplate: "pages/wiki_view",
 		})
 	}
@@ -258,8 +284,9 @@ func (customResolver) ResolveWikilink(n *wikilink.Node) ([]byte, error) {
 	return []byte(fmt.Sprintf("/wiki/%s", slug)), nil
 }
 
-func postWikiHandler(queries *db.Queries) echo.HandlerFunc {
+func postWikiHandler(cfg Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		queries := cfg.Queries
 		if queries == nil {
 			return c.String(http.StatusInternalServerError, "wiki storage not configured")
 		}
@@ -272,17 +299,24 @@ func postWikiHandler(queries *db.Queries) echo.HandlerFunc {
 		if err != nil {
 			return c.String(http.StatusNotFound, "page not found")
 		}
-		return saveWikiRevision(c, queries, slug)
+		return saveWikiRevision(c, cfg, slug)
 	}
 }
 
-func renderWikiEdit(c echo.Context, queries *db.Queries, routePath string) error {
+func renderWikiEdit(c echo.Context, cfg Config, routePath string) error {
+	queries := cfg.Queries
 	slug, err := normalizeWikiSlug(routePath)
 	if err != nil {
 		return c.String(http.StatusNotFound, "page not found")
 	}
 
-	data := wikiEditData{Title: titleFromSlug(slug), Slug: slug, ContentTemplate: "pages/wiki_edit"}
+	data := wikiEditData{
+		Title:           titleFromSlug(slug),
+		Slug:            slug,
+		Branding:        cfg.Branding,
+		LogoURL:         cfg.LogoURL,
+		ContentTemplate: "pages/wiki_edit",
+	}
 
 	page, err := queries.GetPageBySlug(c.Request().Context(), slug)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -302,7 +336,8 @@ func renderWikiEdit(c echo.Context, queries *db.Queries, routePath string) error
 	return c.Render(http.StatusOK, "layout", data)
 }
 
-func saveWikiRevision(c echo.Context, queries *db.Queries, slug string) error {
+func saveWikiRevision(c echo.Context, cfg Config, slug string) error {
+	queries := cfg.Queries
 	body := c.FormValue("body")
 	if strings.TrimSpace(body) == "" {
 		return c.Render(http.StatusUnprocessableEntity, "layout", wikiEditData{
@@ -310,6 +345,8 @@ func saveWikiRevision(c echo.Context, queries *db.Queries, slug string) error {
 			Slug:            slug,
 			Body:            body,
 			Error:           "body is required",
+			Branding:        cfg.Branding,
+			LogoURL:         cfg.LogoURL,
 			ContentTemplate: "pages/wiki_edit",
 		})
 	}

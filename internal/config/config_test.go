@@ -11,6 +11,8 @@ func TestLoadSuccess(t *testing.T) {
 	t.Setenv("WIKI_SERVER_URL", "https://wiki.test")
 	t.Setenv("WIKI_ENVIRONMENT", "test")
 	t.Setenv("WIKI_LOG_LEVEL", "debug")
+	t.Setenv("WIKI_BRANDING", "Acme Wiki")
+	t.Setenv("WIKI_LOGO", "https://cdn.example.com/logo.svg")
 	t.Setenv("WIKI_DATABASE_URL", "./data/wiki.test.db")
 	t.Setenv("WIKI_JWT_SECRET", "jwt-secret")
 	t.Setenv("WIKI_SSO_LOGIN_URL", "/custom/sso/login")
@@ -35,6 +37,12 @@ func TestLoadSuccess(t *testing.T) {
 	}
 	if cfg.LogLevel != "debug" {
 		t.Fatalf("LogLevel = %q, want %q", cfg.LogLevel, "debug")
+	}
+	if cfg.Branding != "Acme Wiki" {
+		t.Fatalf("Branding = %q, want %q", cfg.Branding, "Acme Wiki")
+	}
+	if cfg.LogoURL != "https://cdn.example.com/logo.svg" {
+		t.Fatalf("LogoURL = %q, want %q", cfg.LogoURL, "https://cdn.example.com/logo.svg")
 	}
 	if cfg.SSOLoginURL != "/custom/sso/login" {
 		t.Fatalf("SSOLoginURL = %q, want %q", cfg.SSOLoginURL, "/custom/sso/login")
