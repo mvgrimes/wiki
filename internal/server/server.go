@@ -33,6 +33,9 @@ type Config struct {
 	SSOLoginURL  string
 	JWTCookie    string
 	Queries      *db.Queries
+	UploadStore  ObjectStore
+	UploadBucket string
+	UploadMaxBytes int64
 }
 
 func Start(ctx context.Context, cfg Config) error {
@@ -85,6 +88,7 @@ func New(cfg Config) (*echo.Echo, error) {
 	e.Static("/assets", "internal/web/assets")
 	e.GET("/wiki/*", getWikiHandler(cfg.Queries))
 	e.POST("/wiki/*", postWikiHandler(cfg.Queries))
+	e.POST("/api/uploads", uploadHandler(cfg))
 
 	return e, nil
 }

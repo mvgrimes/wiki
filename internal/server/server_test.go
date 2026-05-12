@@ -1,10 +1,13 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -21,6 +24,27 @@ import (
 )
 
 type failingRenderer struct{}
+
+type objectStoreStub struct {
+	err         error
+	bucket      string
+	key         string
+	contentType string
+	body        []byte
+	size        int64
+}
+
+func (s *objectStoreStub) PutObject(_ context.Context, bucket, key, contentType string, body io.Reader, size int64) error {
+	s.bucket = bucket
+	s.key = key
+	s.contentType = contentType
+	s.size = size
+	if body != nil {
+		buf, _ := io.ReadAll(body)
+		s.body = buf
+	}
+	return s.err
+}
 
 func (failingRenderer) Render(_ io.Writer, _ string, _ any, _ echo.Context) error {
 	return errRenderFailed
@@ -209,6 +233,92 @@ func TestWikiEditValidationAndLatestRevision(t *testing.T) {
 	}
 	if !strings.Contains(viewRec.Body.String(), "second") {
 		t.Fatalf("expected latest revision body in response, got %q", viewRec.Body.String())
+	}
+}
+
+func TestUploadEndpointSuccessAndFailurePaths(t *testing.T) {
+	sqlDB := openMigratedDB(t)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	queries := db.New(sqlDB)
+	store := &objectStoreStub{}
+
+	e, err := New(Config{
+		Environment:    "production",
+		JWTSecret:      "secret",
+		JWTCookie:      "wiki_token",
+		Queries:        queries,
+		UploadStore:    store,
+		UploadBucket:   "wiki-uploads",
+		UploadMaxBytes: 1024,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	auth := &http.Cookie{Name: "wiki_token", Value: signedToken(t, "secret")}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField("page_slug", "guides/uploads")
+	part, _ := writer.CreateFormFile("file", "hello.txt")
+	_, _ = part.Write([]byte("hello upload"))
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/uploads", body)
+	req.Header.Set(echo.HeaderContentType, writer.FormDataContentType())
+	req.AddCookie(auth)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("upload status = %d, want %d (%s)", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	if store.bucket != "wiki-uploads" || !strings.HasPrefix(store.key, "attachments/guides-uploads/") {
+		t.Fatalf("store call bucket/key = %q/%q", store.bucket, store.key)
+	}
+	if store.contentType != "text/plain; charset=utf-8" {
+		t.Fatalf("content type = %q", store.contentType)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if payload["storage_key"] == "" {
+		t.Fatalf("storage_key missing in response: %v", payload)
+	}
+
+	store.err = errors.New("s3 unavailable")
+	failBody := &bytes.Buffer{}
+	failWriter := multipart.NewWriter(failBody)
+	_ = failWriter.WriteField("page_slug", "guides/uploads")
+	failPart, _ := failWriter.CreateFormFile("file", "again.txt")
+	_, _ = failPart.Write([]byte("hello again"))
+	_ = failWriter.Close()
+
+	failReq := httptest.NewRequest(http.MethodPost, "/api/uploads", failBody)
+	failReq.Header.Set(echo.HeaderContentType, failWriter.FormDataContentType())
+	failReq.AddCookie(auth)
+	failRec := httptest.NewRecorder()
+	e.ServeHTTP(failRec, failReq)
+	if failRec.Code != http.StatusBadGateway {
+		t.Fatalf("failure status = %d, want %d", failRec.Code, http.StatusBadGateway)
+	}
+
+	badTypeBody := &bytes.Buffer{}
+	badTypeWriter := multipart.NewWriter(badTypeBody)
+	_ = badTypeWriter.WriteField("page_slug", "guides/uploads")
+	badTypePart, _ := badTypeWriter.CreateFormFile("file", "payload.bin")
+	_, _ = badTypePart.Write([]byte{0x00, 0x01, 0x02, 0x03})
+	_ = badTypeWriter.Close()
+
+	badTypeReq := httptest.NewRequest(http.MethodPost, "/api/uploads", badTypeBody)
+	badTypeReq.Header.Set(echo.HeaderContentType, badTypeWriter.FormDataContentType())
+	badTypeReq.AddCookie(auth)
+	badTypeRec := httptest.NewRecorder()
+	e.ServeHTTP(badTypeRec, badTypeReq)
+	if badTypeRec.Code != http.StatusBadRequest {
+		t.Fatalf("bad-type status = %d, want %d", badTypeRec.Code, http.StatusBadRequest)
 	}
 }
 
