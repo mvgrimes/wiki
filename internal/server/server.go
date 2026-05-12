@@ -216,7 +216,9 @@ var CustomResolver wikilink.Resolver = customResolver{}
 type customResolver struct{}
 
 func (customResolver) ResolveWikilink(n *wikilink.Node) ([]byte, error) {
-	return []byte(fmt.Sprintf("/wiki/%s", n.Target)), nil
+	targetStr := string(n.Target)
+	slug := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(targetStr)), " ", "_")
+	return []byte(fmt.Sprintf("/wiki/%s", slug)), nil
 }
 
 func postWikiHandler(queries *db.Queries) echo.HandlerFunc {
