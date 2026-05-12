@@ -201,7 +201,7 @@ const listRevisionsByPage = `-- name: ListRevisionsByPage :many
 SELECT id, page_id, body, author, checksum, created_at
 FROM revisions
 WHERE page_id = ?
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 `
 
 func (q *Queries) ListRevisionsByPage(ctx context.Context, pageID int64) ([]Revision, error) {

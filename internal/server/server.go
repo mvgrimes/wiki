@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +20,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"wiki/internal/auth"
+	"wiki/internal/db"
 	"wiki/internal/web"
 )
 
@@ -29,6 +32,7 @@ type Config struct {
 	JWTSecret    string
 	SSOLoginURL  string
 	JWTCookie    string
+	Queries      *db.Queries
 }
 
 func Start(ctx context.Context, cfg Config) error {
@@ -79,8 +83,166 @@ func New(cfg Config) (*echo.Echo, error) {
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.GET("/readyz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.Static("/assets", "internal/web/assets")
+	e.GET("/wiki/*", getWikiHandler(cfg.Queries))
+	e.POST("/wiki/*", postWikiHandler(cfg.Queries))
 
 	return e, nil
+}
+
+type wikiViewData struct {
+	Title     string
+	Slug      string
+	Body      string
+	UpdatedAt string
+}
+
+type wikiEditData struct {
+	Title string
+	Slug  string
+	Body  string
+	Error string
+}
+
+func getWikiHandler(queries *db.Queries) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if queries == nil {
+			return c.String(http.StatusInternalServerError, "wiki storage not configured")
+		}
+
+		routePath := strings.Trim(c.Param("*"), "/")
+		if strings.HasSuffix(routePath, "/edit") {
+			return renderWikiEdit(c, queries, strings.TrimSuffix(routePath, "/edit"))
+		}
+
+		slug, err := normalizeWikiSlug(routePath)
+		if err != nil {
+			return c.String(http.StatusNotFound, "page not found")
+		}
+
+		page, err := queries.GetPageBySlug(c.Request().Context(), slug)
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.String(http.StatusNotFound, "page not found")
+		}
+		if err != nil {
+			return err
+		}
+
+		revisions, err := queries.ListRevisionsByPage(c.Request().Context(), page.ID)
+		if err != nil {
+			return err
+		}
+		if len(revisions) == 0 {
+			return c.String(http.StatusNotFound, "page has no revisions")
+		}
+
+		return c.Render(http.StatusOK, "pages/wiki_view", wikiViewData{
+			Title:     page.Title,
+			Slug:      page.Slug,
+			Body:      revisions[0].Body,
+			UpdatedAt: revisions[0].CreatedAt,
+		})
+	}
+}
+
+func postWikiHandler(queries *db.Queries) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if queries == nil {
+			return c.String(http.StatusInternalServerError, "wiki storage not configured")
+		}
+		routePath := strings.Trim(c.Param("*"), "/")
+		if !strings.HasSuffix(routePath, "/edit") {
+			return c.String(http.StatusNotFound, "page not found")
+		}
+
+		slug, err := normalizeWikiSlug(strings.TrimSuffix(routePath, "/edit"))
+		if err != nil {
+			return c.String(http.StatusNotFound, "page not found")
+		}
+		return saveWikiRevision(c, queries, slug)
+	}
+}
+
+func renderWikiEdit(c echo.Context, queries *db.Queries, routePath string) error {
+	slug, err := normalizeWikiSlug(routePath)
+	if err != nil {
+		return c.String(http.StatusNotFound, "page not found")
+	}
+
+	data := wikiEditData{Title: titleFromSlug(slug), Slug: slug}
+
+	page, err := queries.GetPageBySlug(c.Request().Context(), slug)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if err == nil {
+		data.Title = page.Title
+		revisions, revErr := queries.ListRevisionsByPage(c.Request().Context(), page.ID)
+		if revErr != nil {
+			return revErr
+		}
+		if len(revisions) > 0 {
+			data.Body = revisions[0].Body
+		}
+	}
+
+	return c.Render(http.StatusOK, "pages/wiki_edit", data)
+}
+
+func saveWikiRevision(c echo.Context, queries *db.Queries, slug string) error {
+	body := c.FormValue("body")
+	if strings.TrimSpace(body) == "" {
+		return c.Render(http.StatusUnprocessableEntity, "pages/wiki_edit", wikiEditData{
+			Title: titleFromSlug(slug),
+			Slug:  slug,
+			Body:  body,
+			Error: "body is required",
+		})
+	}
+
+	ctx := c.Request().Context()
+	page, err := queries.GetPageBySlug(ctx, slug)
+	if errors.Is(err, sql.ErrNoRows) {
+		page, err = queries.CreatePage(ctx, db.CreatePageParams{Slug: slug, Title: titleFromSlug(slug)})
+	}
+	if err != nil {
+		return err
+	}
+
+	author := "unknown"
+	if principal, ok := auth.PrincipalFromContext(c); ok && strings.TrimSpace(principal.Subject) != "" {
+		author = principal.Subject
+	}
+
+	checksum := fmt.Sprintf("%x", sha256.Sum256([]byte(body)))
+	_, err = queries.CreateRevision(ctx, db.CreateRevisionParams{
+		PageID:   page.ID,
+		Body:     body,
+		Author:   author,
+		Checksum: checksum,
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.Redirect(http.StatusSeeOther, "/wiki/"+slug)
+}
+
+func normalizeWikiSlug(raw string) (string, error) {
+	raw = strings.TrimSpace(strings.Trim(raw, "/"))
+	if raw == "" {
+		return "", fmt.Errorf("empty slug")
+	}
+	return raw, nil
+}
+
+func titleFromSlug(slug string) string {
+	parts := strings.Split(slug, "/")
+	name := parts[len(parts)-1]
+	name = strings.ReplaceAll(name, "-", " ")
+	if name == "" {
+		return "Untitled"
+	}
+	return strings.ToUpper(name[:1]) + name[1:]
 }
 
 type templateRenderer struct {

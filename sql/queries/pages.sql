@@ -22,7 +22,7 @@ RETURNING id, page_id, body, author, checksum, created_at;
 SELECT id, page_id, body, author, checksum, created_at
 FROM revisions
 WHERE page_id = ?
-ORDER BY created_at DESC;
+ORDER BY created_at DESC, id DESC;
 
 -- name: CreateAttachment :one
 INSERT INTO attachments (page_id, revision_id, file_name, content_type, size_bytes, storage_key)

@@ -1,0 +1,24 @@
+{{define "pages/wiki_edit"}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Edit {{.Title}} - Wiki</title>
+    <link rel="stylesheet" href="/assets/dist/app.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Edit {{.Title}}</h1>
+      <p><small>Path: /wiki/{{.Slug}}</small></p>
+      {{if .Error}}<p>{{.Error}}</p>{{end}}
+      <form method="post" action="/wiki/{{.Slug}}/edit">
+        <textarea name="body" rows="20" cols="80">{{.Body}}</textarea>
+        <div>
+          <button type="submit">Save revision</button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
+{{end}}

@@ -13,10 +13,11 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
-	"wiki/migrations"
 	"wiki/internal/config"
+	"wiki/internal/db"
 	"wiki/internal/logger"
 	"wiki/internal/server"
+	"wiki/migrations"
 )
 
 func Execute() {
@@ -42,6 +43,12 @@ var serverCmd = &cobra.Command{
 			return err
 		}
 
+		sqlDB, err := openDB()
+		if err != nil {
+			return err
+		}
+		defer sqlDB.Close()
+
 		slog.SetDefault(logger.New(cfg.LogLevel))
 		slog.Info("starting server", "address", cfg.ServerAddress, "port", cfg.ServerPort, "environment", cfg.Environment)
 
@@ -52,6 +59,7 @@ var serverCmd = &cobra.Command{
 			JWTSecret:   cfg.JWTSecret,
 			SSOLoginURL: cfg.SSOLoginURL,
 			JWTCookie:   cfg.JWTCookie,
+			Queries:     db.New(sqlDB),
 		})
 	},
 }

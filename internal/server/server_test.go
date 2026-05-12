@@ -1,16 +1,23 @@
 package server
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite"
+	"wiki/internal/db"
+	"wiki/migrations"
 )
 
 type failingRenderer struct{}
@@ -89,6 +96,122 @@ func TestRouteAndRenderErrorPaths(t *testing.T) {
 	}
 }
 
+func TestWikiPageLifecycleRoutes(t *testing.T) {
+	sqlDB := openMigratedDB(t)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	queries := db.New(sqlDB)
+
+	e, err := New(Config{Environment: "production", JWTSecret: "secret", JWTCookie: "wiki_token", Queries: queries})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	auth := &http.Cookie{Name: "wiki_token", Value: signedToken(t, "secret")}
+
+	missingReq := httptest.NewRequest(http.MethodGet, "/wiki/guides/getting-started", nil)
+	missingReq.AddCookie(auth)
+	missingRec := httptest.NewRecorder()
+	e.ServeHTTP(missingRec, missingReq)
+	if missingRec.Code != http.StatusNotFound {
+		t.Fatalf("missing page status = %d, want %d", missingRec.Code, http.StatusNotFound)
+	}
+
+	editReq := httptest.NewRequest(http.MethodGet, "/wiki/guides/getting-started/edit", nil)
+	editReq.AddCookie(auth)
+	editRec := httptest.NewRecorder()
+	e.ServeHTTP(editRec, editReq)
+	if editRec.Code != http.StatusOK {
+		t.Fatalf("edit page status = %d, want %d", editRec.Code, http.StatusOK)
+	}
+
+	body := "body=%23+Getting+Started%0Ahello+world"
+	postReq := httptest.NewRequest(http.MethodPost, "/wiki/guides/getting-started/edit", strings.NewReader(body))
+	postReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	postReq.AddCookie(auth)
+	postRec := httptest.NewRecorder()
+	e.ServeHTTP(postRec, postReq)
+	if postRec.Code != http.StatusSeeOther {
+		t.Fatalf("post status = %d, want %d", postRec.Code, http.StatusSeeOther)
+	}
+
+	viewReq := httptest.NewRequest(http.MethodGet, "/wiki/guides/getting-started", nil)
+	viewReq.AddCookie(auth)
+	viewRec := httptest.NewRecorder()
+	e.ServeHTTP(viewRec, viewReq)
+	if viewRec.Code != http.StatusOK {
+		t.Fatalf("view page status = %d, want %d", viewRec.Code, http.StatusOK)
+	}
+	if !strings.Contains(viewRec.Body.String(), "# Getting Started") {
+		t.Fatalf("view response missing revision body: %q", viewRec.Body.String())
+	}
+
+	page, err := queries.GetPageBySlug(context.Background(), "guides/getting-started")
+	if err != nil {
+		t.Fatalf("GetPageBySlug() unexpected error: %v", err)
+	}
+	revisions, err := queries.ListRevisionsByPage(context.Background(), page.ID)
+	if err != nil {
+		t.Fatalf("ListRevisionsByPage() unexpected error: %v", err)
+	}
+	if len(revisions) != 1 {
+		t.Fatalf("revisions len = %d, want 1", len(revisions))
+	}
+	if revisions[0].Author != "u-1" {
+		t.Fatalf("revision author = %q, want %q", revisions[0].Author, "u-1")
+	}
+}
+
+func TestWikiEditValidationAndLatestRevision(t *testing.T) {
+	sqlDB := openMigratedDB(t)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	queries := db.New(sqlDB)
+
+	e, err := New(Config{Environment: "production", JWTSecret: "secret", JWTCookie: "wiki_token", Queries: queries})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	auth := &http.Cookie{Name: "wiki_token", Value: signedToken(t, "secret")}
+
+	invalidReq := httptest.NewRequest(http.MethodPost, "/wiki/notes/edit", strings.NewReader("body=   "))
+	invalidReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	invalidReq.AddCookie(auth)
+	invalidRec := httptest.NewRecorder()
+	e.ServeHTTP(invalidRec, invalidReq)
+	if invalidRec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("validation status = %d, want %d", invalidRec.Code, http.StatusUnprocessableEntity)
+	}
+
+	firstReq := httptest.NewRequest(http.MethodPost, "/wiki/notes/edit", strings.NewReader("body=first"))
+	firstReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	firstReq.AddCookie(auth)
+	firstRec := httptest.NewRecorder()
+	e.ServeHTTP(firstRec, firstReq)
+	if firstRec.Code != http.StatusSeeOther {
+		t.Fatalf("first post status = %d, want %d", firstRec.Code, http.StatusSeeOther)
+	}
+
+	secondReq := httptest.NewRequest(http.MethodPost, "/wiki/notes/edit", strings.NewReader("body=second"))
+	secondReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	secondReq.AddCookie(auth)
+	secondRec := httptest.NewRecorder()
+	e.ServeHTTP(secondRec, secondReq)
+	if secondRec.Code != http.StatusSeeOther {
+		t.Fatalf("second post status = %d, want %d", secondRec.Code, http.StatusSeeOther)
+	}
+
+	viewReq := httptest.NewRequest(http.MethodGet, "/wiki/notes", nil)
+	viewReq.AddCookie(auth)
+	viewRec := httptest.NewRecorder()
+	e.ServeHTTP(viewRec, viewReq)
+	if viewRec.Code != http.StatusOK {
+		t.Fatalf("view status = %d, want %d", viewRec.Code, http.StatusOK)
+	}
+	if !strings.Contains(viewRec.Body.String(), "second") {
+		t.Fatalf("expected latest revision body in response, got %q", viewRec.Body.String())
+	}
+}
+
 func signedToken(t *testing.T, secret string) string {
 	t.Helper()
 	claims := jwt.RegisteredClaims{
@@ -101,4 +224,24 @@ func signedToken(t *testing.T, secret string) string {
 		t.Fatalf("SignedString() error = %v", err)
 	}
 	return signed
+}
+
+func openMigratedDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "wiki.db")
+	sqlDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open() unexpected error: %v", err)
+	}
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		t.Fatalf("goose.SetDialect() unexpected error: %v", err)
+	}
+	goose.SetBaseFS(migrations.FS())
+	if err := goose.Up(sqlDB, "."); err != nil {
+		t.Fatalf("goose.Up() unexpected error: %v", err)
+	}
+
+	return sqlDB
 }

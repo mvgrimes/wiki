@@ -1,10 +1,17 @@
-{{define "content"}}
-<main>
-  <h1>{{.Title}}</h1>
-  <p>Welcome to the wiki service.</p>
-</main>
-{{end}}
-
 {{define "pages/home"}}
-{{template "layout" .}}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wiki</title>
+    <link rel="stylesheet" href="/assets/dist/app.css" />
+  </head>
+  <body>
+    <main>
+      <h1>{{.Title}}</h1>
+      <p>Welcome to the wiki service.</p>
+    </main>
+  </body>
+</html>
 {{end}}
