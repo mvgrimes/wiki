@@ -18,3 +18,13 @@ formatters:
     goimports:
       local-prefixes:
         - wiki
+  exclusions:
+    generated: lax
+    paths:
+      - tmp
+      - web
+      - _tmp
+      - docs/ref/
+      - third_party$
+      - builtin$
+      - examples$
