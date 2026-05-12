@@ -27,7 +27,7 @@ func TestMiddleware_AllowsBearerTokenAndSetsPrincipal(t *testing.T) {
 		if !ok {
 			t.Fatal("expected principal in context")
 		}
-		if p.Subject != "user-1" || p.Role != "admin" || len(p.Capabilities) != 2 {
+		if p.Subject != "user-1" || p.User != 42 || p.Role != "EMPLOYEE" || len(p.Capabilities) != 2 {
 			t.Fatalf("unexpected principal: %+v", p)
 		}
 		return c.NoContent(http.StatusNoContent)
@@ -126,8 +126,10 @@ func signedToken(t *testing.T, secret string, exp time.Time) string {
 	t.Helper()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
-		Email:        "user@example.com",
-		Role:         "admin",
+		Data: claimsData{
+			User: 42,
+			Role: "EMPLOYEE",
+		},
 		Capabilities: []string{"page:read", "page:write"},
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "user-1",
