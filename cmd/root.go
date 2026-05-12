@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 	_ "modernc.org/sqlite"
+	"wiki/internal/config"
+	"wiki/internal/logger"
 	"wiki/internal/server"
 )
 
@@ -36,7 +38,21 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start HTTP server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return server.Start(cmd.Context(), server.ConfigFromEnv())
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		slog.SetDefault(logger.New(cfg.LogLevel))
+		slog.Info("starting server", "address", cfg.ServerAddress, "port", cfg.ServerPort, "environment", cfg.Environment)
+
+		return server.Start(cmd.Context(), server.Config{
+			Address:     cfg.ServerAddress,
+			Port:        cfg.ServerPort,
+			JWTSecret:   cfg.JWTSecret,
+			SSOLoginURL: cfg.SSOLoginURL,
+			JWTCookie:   cfg.JWTCookie,
+		})
 	},
 }
 
@@ -77,15 +93,15 @@ var bootstrapCmd = &cobra.Command{
 }
 
 func openDB() (*sql.DB, error) {
-	dsn := os.Getenv("WIKI_DATABASE_URL")
-	if dsn == "" {
-		dsn = filepath.Join("data", "wiki.db")
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,120 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+type Config struct {
+	Environment string
+	LogLevel    string
+
+	ServerAddress string
+	ServerPort    int
+	ServerURL     string
+
+	DatabaseURL string
+	JWTSecret   string
+
+	SSOLoginURL string
+	JWTCookie   string
+
+	S3Endpoint       string
+	S3Bucket         string
+	S3Region         string
+	S3AccessKeyID    string
+	S3SecretAccessKey string
+	S3ForcePathStyle bool
+}
+
+func Load() (*Config, error) {
+	serverPort, err := intEnvOrDefault("WIKI_SERVER_PORT", 8080)
+	if err != nil {
+		return nil, err
+	}
+
+	s3ForcePathStyle, err := boolEnvOrDefault("WIKI_S3_FORCE_PATH_STYLE", true)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{
+		Environment:       envOrDefault("WIKI_ENVIRONMENT", "development"),
+		LogLevel:          envOrDefault("WIKI_LOG_LEVEL", "info"),
+		ServerAddress:     envOrDefault("WIKI_SERVER_ADDRESS", "0.0.0.0"),
+		ServerPort:        serverPort,
+		ServerURL:         strings.TrimSpace(os.Getenv("WIKI_SERVER_URL")),
+		DatabaseURL:       envOrDefault("WIKI_DATABASE_URL", "./data/wiki.db"),
+		JWTSecret:         strings.TrimSpace(os.Getenv("WIKI_JWT_SECRET")),
+		SSOLoginURL:       envOrDefault("WIKI_SSO_LOGIN_URL", "/sso/login"),
+		JWTCookie:         envOrDefault("WIKI_JWT_COOKIE", "wiki_token"),
+		S3Endpoint:        strings.TrimSpace(os.Getenv("WIKI_S3_ENDPOINT")),
+		S3Bucket:          envOrDefault("WIKI_S3_BUCKET", "wiki-uploads"),
+		S3Region:          envOrDefault("WIKI_AWS_REGION", "us-east-1"),
+		S3AccessKeyID:     strings.TrimSpace(os.Getenv("WIKI_AWS_ACCESS_KEY_ID")),
+		S3SecretAccessKey: strings.TrimSpace(os.Getenv("WIKI_AWS_SECRET_ACCESS_KEY")),
+		S3ForcePathStyle:  s3ForcePathStyle,
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	missing := make([]string, 0, 2)
+	if strings.TrimSpace(c.ServerURL) == "" {
+		missing = append(missing, "WIKI_SERVER_URL")
+	}
+	if strings.TrimSpace(c.JWTSecret) == "" {
+		missing = append(missing, "WIKI_JWT_SECRET")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
+	}
+	if c.ServerPort <= 0 {
+		return fmt.Errorf("WIKI_SERVER_PORT must be greater than zero")
+	}
+
+	return nil
+}
+
+func envOrDefault(key, fallback string) string {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	return strings.TrimSpace(v)
+}
+
+func intEnvOrDefault(key string, fallback int) (int, error) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
+	}
+	return n, nil
+}
+
+func boolEnvOrDefault(key string, fallback bool) (bool, error) {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return fallback, nil
+	}
+	switch v {
+	case "1", "true", "yes", "y", "on":
+		return true, nil
+	case "0", "false", "no", "n", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("%s must be a boolean (true/false)", key)
+	}
+}
