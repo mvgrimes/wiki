@@ -70,6 +70,39 @@ go test ./...
 
 You can also use `just` shortcuts from `justfile` for common workflows.
 
+## Test Matrix
+
+The test strategy is organized by layer so contributors can choose fast local checks or full validation gates:
+
+- unit: package-level behavior checks for CLI, auth middleware, server routes, and config (`just test-unit`)
+- integration: DB + migration behavior against an ephemeral sqlite database (`just test-integration`)
+- e2e-lite: route-level HTTP behavior through server tests (`go test ./internal/server/...`)
+
+## Quality Gates
+
+Run `just quality-gate` before marking feature work complete. This gate enforces:
+
+- static checks: `just lint`
+- SQL generation validity: `just sqlc`
+- migration command health: `just goose-check`
+- required tests: `just test-unit`, `just test-integration`, `just test-auth`, `just test-migrations`
+
+Coverage targets for critical packages:
+
+- `internal/auth`: >= 80% (`go test -cover ./internal/auth/...`)
+- `internal/db` migration/integration path: >= 60% (`go test -cover ./internal/db/...`)
+- wiki service route path (`internal/server`): >= 70% (`go test -cover ./internal/server/...`)
+
+Auth and migration-related tickets must not be closed if `just test-auth` or `just test-migrations` fail.
+
+## Release Validation Checklist
+
+Before a release cut, validate:
+
+- security: auth middleware behavior, access control checks, dependency/audit review
+- regressions: run `just quality-gate` and manually verify core wiki edit/upload paths
+- database safety: run migration status and test migration path from clean DB
+
 ## Wiki Edit UI Manual Checklist
 
 - Open `/wiki/<slug>/edit` and confirm the live preview updates while typing (no full reload).
