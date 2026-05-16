@@ -48,6 +48,7 @@ type Config struct {
 	UploadStore    ObjectStore
 	UploadBucket   string
 	UploadMaxBytes int64
+	ReportError    func(context.Context, error, map[string]any)
 }
 
 func Start(ctx context.Context, cfg Config) error {
@@ -81,12 +82,22 @@ func New(cfg Config) (*echo.Echo, error) {
 		if c.Response().Committed {
 			return
 		}
+		requestID := c.Response().Header().Get(echo.HeaderXRequestID)
+		method := c.Request().Method
+		uri := c.Request().RequestURI
 		slog.Error("http internal error",
-			"request_id", c.Response().Header().Get(echo.HeaderXRequestID),
-			"method", c.Request().Method,
-			"uri", c.Request().RequestURI,
+			"request_id", requestID,
+			"method", method,
+			"uri", uri,
 			"error", err,
 		)
+		if cfg.ReportError != nil {
+			cfg.ReportError(c.Request().Context(), err, map[string]any{
+				"request_id": requestID,
+				"method":     method,
+				"url":        uri,
+			})
+		}
 		_ = c.String(http.StatusInternalServerError, "internal server error")
 	}
 	e.Use(middleware.RequestID())

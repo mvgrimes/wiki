@@ -24,6 +24,11 @@ import (
 	"wiki/migrations"
 )
 
+type reportCapture struct {
+	err    error
+	fields map[string]any
+}
+
 type failingRenderer struct{}
 
 type objectStoreStub struct {
@@ -130,6 +135,44 @@ func TestRouteAndRenderErrorPaths(t *testing.T) {
 	e.ServeHTTP(renderRec, renderReq)
 	if renderRec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want %d", renderRec.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestHTTPErrorHandlerReportsErrors(t *testing.T) {
+	capture := &reportCapture{}
+	e, err := New(Config{
+		Environment: "production",
+		JWTSecret:   "secret",
+		JWTCookie:   "wiki_token",
+		ReportError: func(_ context.Context, err error, fields map[string]any) {
+			capture.err = err
+			capture.fields = fields
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	e.GET("/boom", func(c echo.Context) error {
+		return errors.New("boom")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/boom", nil)
+	req.AddCookie(&http.Cookie{Name: "wiki_token", Value: signedToken(t, "secret")})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+	if capture.err == nil || capture.err.Error() != "boom" {
+		t.Fatalf("captured err = %v, want boom", capture.err)
+	}
+	if capture.fields["method"] != http.MethodGet {
+		t.Fatalf("captured method = %v, want %v", capture.fields["method"], http.MethodGet)
+	}
+	if capture.fields["url"] != "/boom" {
+		t.Fatalf("captured url = %v, want /boom", capture.fields["url"])
 	}
 }
 

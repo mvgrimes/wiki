@@ -104,3 +104,40 @@ func TestLoadInvalidBoolEnv(t *testing.T) {
 		t.Fatalf("error = %q, want reference to WIKI_S3_FORCE_PATH_STYLE", err.Error())
 	}
 }
+
+func TestLoadEnablesMonitoringForProduction(t *testing.T) {
+	t.Setenv("WIKI_SERVER_URL", "https://wiki.test")
+	t.Setenv("WIKI_JWT_SECRET", "jwt-secret")
+	t.Setenv("WIKI_SSO_LOGIN_URL", "/sso/login")
+	t.Setenv("FILESHARE_ENVIRONMENT", "production")
+	t.Setenv("FILESHARE_HONEYBADGER_API_KEY", "hb-key")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+	if !cfg.ErrorMonitoringEnabled {
+		t.Fatal("ErrorMonitoringEnabled = false, want true")
+	}
+	if cfg.HoneybadgerAPIKey != "hb-key" {
+		t.Fatalf("HoneybadgerAPIKey = %q, want %q", cfg.HoneybadgerAPIKey, "hb-key")
+	}
+}
+
+func TestLoadEnablesMonitoringForTestFlag(t *testing.T) {
+	t.Setenv("WIKI_SERVER_URL", "https://wiki.test")
+	t.Setenv("WIKI_JWT_SECRET", "jwt-secret")
+	t.Setenv("WIKI_SSO_LOGIN_URL", "/sso/login")
+	t.Setenv("FILESHARE_TEST_ERROR_MONITORING", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+	if !cfg.ErrorMonitoringEnabled {
+		t.Fatal("ErrorMonitoringEnabled = false, want true")
+	}
+	if !cfg.TestErrorMonitoringEnabled {
+		t.Fatal("TestErrorMonitoringEnabled = false, want true")
+	}
+}

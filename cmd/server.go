@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"wiki/internal/config"
 	"wiki/internal/db"
 	"wiki/internal/logger"
+	"wiki/internal/monitoring"
 	"wiki/internal/server"
 )
 
@@ -46,6 +49,17 @@ var serverCmd = &cobra.Command{
 			"environment", cfg.Environment,
 		)
 
+		var reportError func(ctx context.Context, err error, fields map[string]any)
+		if cfg.ErrorMonitoringEnabled {
+			if strings.TrimSpace(cfg.HoneybadgerAPIKey) == "" {
+				slog.Warn("error monitoring enabled but FILESHARE_HONEYBADGER_API_KEY is not set")
+			} else {
+				monitoring.ConfigureHoneybadger(cfg.HoneybadgerAPIKey, cfg.Environment)
+				reportError = monitoring.NotifyError
+				slog.Info("honeybadger error monitoring enabled")
+			}
+		}
+
 		return server.Start(cmd.Context(), server.Config{
 			Address:        cfg.ServerAddress,
 			Port:           cfg.ServerPort,
@@ -61,6 +75,7 @@ var serverCmd = &cobra.Command{
 			UploadStore:    uploadStore,
 			UploadBucket:   cfg.S3Bucket,
 			UploadMaxBytes: 10 << 20,
+			ReportError:    reportError,
 		})
 	},
 }
