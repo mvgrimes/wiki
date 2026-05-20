@@ -1,5 +1,14 @@
 const editorApp = document.getElementById("editor-app");
 
+function initMarkdownEditor(textarea) {
+  const MarkdownEditor = globalThis.MarkdownEditor;
+  if (!MarkdownEditor) {
+    return null;
+  }
+
+  return new MarkdownEditor(`#${textarea.id}`, { mode: "hybrid" });
+}
+
 export function buildAttachmentMarkdown(payload) {
   const name = payload.file_name || "upload";
   const target = payload.storage_key || "";
@@ -91,6 +100,8 @@ function initWikiEditor() {
   if (!textarea || !uploadInput || !dropzone || !progress || !status) {
     return;
   }
+
+  initMarkdownEditor(textarea);
 
   const runUpload = async (files) => {
     if (!files || files.length === 0) {
