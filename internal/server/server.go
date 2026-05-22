@@ -43,6 +43,7 @@ type Config struct {
 	TemplatesDir   string
 	JWTSecret      string
 	SSOLoginURL    string
+	ServerURL      string
 	JWTCookie      string
 	Queries        *db.Queries
 	UploadStore    ObjectStore
@@ -131,6 +132,7 @@ func New(cfg Config) (*echo.Echo, error) {
 		JWTSecret:   cfg.JWTSecret,
 		CookieName:  cfg.JWTCookie,
 		SSOLoginURL: cfg.SSOLoginURL,
+		ServerURL:   cfg.ServerURL,
 		Skipper: func(c echo.Context) bool {
 			path := c.Path()
 			return path == "/healthz" || path == "/readyz" || strings.HasPrefix(path, "/assets/")

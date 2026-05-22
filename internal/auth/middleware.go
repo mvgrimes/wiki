@@ -17,6 +17,7 @@ type Config struct {
 	JWTSecret   string
 	CookieName  string
 	SSOLoginURL string
+	ServerURL   string
 	Skipper     func(echo.Context) bool
 }
 
@@ -52,18 +53,18 @@ func Middleware(cfg Config) echo.MiddlewareFunc {
 
 			tokenString, err := tokenFromRequest(c, cfg.CookieName)
 			if err != nil {
-				return unauthenticated(c, cfg.SSOLoginURL)
+				return unauthenticated(c, cfg)
 			}
 
 			principal, err := parsePrincipal(tokenString, cfg.JWTSecret)
 			if err != nil {
 				slog.Warn("invalid token", "error", err)
-				return unauthenticated(c, cfg.SSOLoginURL)
+				return unauthenticated(c, cfg)
 			}
 
 			slog.Info("authenticated user", "user", principal.User, "email", principal.Email, "role", principal.Role)
 			if principal.Role != "EMPLOYEE" {
-				return unauthenticated(c, cfg.SSOLoginURL)
+				return unauthenticated(c, cfg)
 			}
 
 			c.Set(principalContextKey, principal)
@@ -120,9 +121,12 @@ func parsePrincipal(tokenString, jwtSecret string) (Principal, error) {
 	}, nil
 }
 
-func unauthenticated(c echo.Context, ssoLoginURL string) error {
+func unauthenticated(c echo.Context, cfg Config) error {
 	if wantsHTML(c) {
-		redirectURL := withReturnTo(ssoLoginURL, c.Request().URL.RequestURI())
+		redirectURL := withReturnTo(
+			cfg.SSOLoginURL,
+			cfg.ServerURL+c.Request().URL.RequestURI(),
+		)
 		return c.Redirect(http.StatusFound, redirectURL)
 	}
 
@@ -157,7 +161,7 @@ func withReturnTo(baseURL, returnTo string) string {
 	}
 
 	query := parsed.Query()
-	query.Set("return_to", returnTo)
+	query.Set("redirectTo", returnTo)
 	parsed.RawQuery = query.Encode()
 	return parsed.String()
 }

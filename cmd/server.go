@@ -70,6 +70,7 @@ var serverCmd = &cobra.Command{
 			FaviconURL:     cfg.FaviconURL,
 			JWTSecret:      cfg.JWTSecret,
 			SSOLoginURL:    cfg.SSOLoginURL,
+			ServerURL:      cfg.ServerURL,
 			JWTCookie:      cfg.JWTCookie,
 			Queries:        db.New(sqlDB),
 			UploadStore:    uploadStore,
