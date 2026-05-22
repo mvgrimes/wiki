@@ -24,7 +24,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"go.abhg.dev/goldmark/mermaid"
-	"go.abhg.dev/goldmark/toc"
+	// "go.abhg.dev/goldmark/toc"
 	"go.abhg.dev/goldmark/wikilink"
 
 	"wiki/internal/auth"
@@ -299,10 +299,10 @@ func renderMarkdownToHTML(markdown string) (string, error) {
 			extension.Strikethrough,
 			extension.TaskList,
 			extension.Typographer,
-			&toc.Extender{
-				MaxDepth: 4,
-				Compact:  true,
-			},
+			// &toc.Extender{
+			// 	MaxDepth: 4,
+			// 	Compact:  true,
+			// },
 			&mermaid.Extender{},
 			&wikilink.Extender{
 				Resolver: CustomResolver,
