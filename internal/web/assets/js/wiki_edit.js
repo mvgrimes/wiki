@@ -165,6 +165,12 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
       previewHTML: "",
       init() {
         this.markdown = this.$el?.dataset?.initialMarkdown || "";
+        this.$nextTick(() => {
+          const textarea = this.$el?.querySelector("#wiki-body");
+          if (textarea) {
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        });
         this.refreshPreview();
       },
       async refreshPreview() {
