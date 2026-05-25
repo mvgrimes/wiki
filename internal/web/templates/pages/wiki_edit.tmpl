@@ -14,9 +14,7 @@
         <div
           id="editor-app"
           data-page-slug="{{.Slug}}"
-          data-initial-markdown="{{.Body}}"
-          x-data="wikiEditor"
-          class="mt-8 grid gap-4 overflow-hidden lg:grid-cols-2"
+          class="mt-8 overflow-hidden"
         >
           <section class="flex flex-col h-[70vh] w-full">
             <h2 class="text-2xl">Editor</h2>
@@ -24,14 +22,7 @@
               id="wiki-body"
               name="body"
               class="textarea textarea-bordered flex-1 w-full min-h-96 overflow-y-scroll"
-              x-model="markdown"
-              @input.debounce.750ms="refreshPreview()"
-            ></textarea>
-          </section>
-          <section class="flex flex-col h-[70vh] w-full">
-            <h2 class="text-2xl">Live preview</h2>
-            <div id="markdown-preview" aria-live="polite" x-html="previewHTML"
-            class="prose prose-li:my-0 prose-h1:mb-2 prose-h2:my-2 flex-1 w-full min-h-96 overflow-y-scroll rounded border border-gray-300 p-3"></div>
+            >{{.Body}}</textarea>
           </section>
         </div>
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
@@ -48,6 +39,5 @@
       </form>
       <script src="https://cdn.jsdelivr.net/npm/markdown-text-editor"></script>
       <script type="module" src="/assets/js/wiki_edit.js"></script>
-      <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     </main>
 {{end}}

@@ -6,7 +6,60 @@ function initMarkdownEditor(textarea) {
     return null;
   }
 
-  return new MarkdownEditor(`#${textarea.id}`, { mode: "hybrid" });
+  const editor = new MarkdownEditor(`#${textarea.id}`, { mode: "hybrid" });
+  wireServerPreview(editor, textarea);
+  return editor;
+}
+
+function wireServerPreview(editor, textarea) {
+  if (!editor || !textarea) {
+    return;
+  }
+
+  let requestID = 0;
+  let debounceTimer = null;
+
+  const renderPreview = async () => {
+    const previewContent = editor.previewContent;
+    if (!previewContent) {
+      return;
+    }
+
+    const currentRequest = ++requestID;
+    try {
+      const html = await previewMarkdown(textarea.value || "");
+      if (currentRequest !== requestID) {
+        return;
+      }
+      previewContent.innerHTML = html;
+    } catch {
+      if (currentRequest !== requestID) {
+        return;
+      }
+      previewContent.innerHTML = "<p>Preview unavailable.</p>";
+    }
+  };
+
+  const schedulePreview = () => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      void renderPreview();
+    }, 500);
+  };
+
+  const originalRender = typeof editor.render === "function" ? editor.render.bind(editor) : null;
+  if (originalRender) {
+    editor.render = (...args) => {
+      const result = originalRender(...args);
+      void renderPreview();
+      return result;
+    };
+  }
+
+  textarea.addEventListener("input", schedulePreview);
 }
 
 export function buildAttachmentMarkdown(payload) {
@@ -155,32 +208,6 @@ function initWikiEditor() {
 
   dropzone.addEventListener("drop", (event) => {
     runUpload(event.dataTransfer.files);
-  });
-}
-
-if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
-  document.addEventListener("alpine:init", () => {
-    Alpine.data("wikiEditor", () => ({
-      markdown: "",
-      previewHTML: "",
-      init() {
-        this.markdown = this.$el?.dataset?.initialMarkdown || "";
-        this.$nextTick(() => {
-          const textarea = this.$el?.querySelector("#wiki-body");
-          if (textarea) {
-            textarea.dispatchEvent(new Event("input", { bubbles: true }));
-          }
-        });
-        this.refreshPreview();
-      },
-      async refreshPreview() {
-        try {
-          this.previewHTML = await previewMarkdown(this.markdown);
-        } catch {
-          this.previewHTML = "<p>Preview unavailable.</p>";
-        }
-      },
-    }));
   });
 }
 
