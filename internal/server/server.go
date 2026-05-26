@@ -78,7 +78,6 @@ func New(cfg Config) (*echo.Echo, error) {
 
 	e := echo.New()
 	e.HideBanner = true
-	// Is this necessary?
 	e.HTTPErrorHandler = func(err error, c echo.Context) {
 		if c.Response().Committed {
 			return
@@ -108,15 +107,36 @@ func New(cfg Config) (*echo.Echo, error) {
 		LogMethod:    true,
 		LogLatency:   true,
 		LogRequestID: true,
+		LogError:     true,
 		HandleError:  true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			slog.Info("http request",
+			attrs := []any{
 				"request_id", v.RequestID,
 				"method", v.Method,
 				"uri", v.URI,
 				"status", v.Status,
 				"latency", v.Latency.String(),
-			)
+			}
+			if v.Error != nil {
+				attrs = append(attrs, "error", v.Error)
+			}
+			if requestErr, ok := c.Get("request_error").(error); ok && requestErr != nil {
+				attrs = append(attrs, "request_error", requestErr)
+			}
+			if requestErrContext, ok := c.Get("request_error_context").(map[string]any); ok {
+				for k, v := range requestErrContext {
+					attrs = append(attrs, k, v)
+				}
+			}
+
+			switch {
+			case v.Status >= http.StatusInternalServerError:
+				slog.Error("http request failed", attrs...)
+			case v.Status >= http.StatusBadRequest:
+				slog.Warn("http request failed", attrs...)
+			default:
+				slog.Info("http request", attrs...)
+			}
 			return nil
 		},
 	}))
@@ -234,12 +254,21 @@ func getWikiHandler(cfg Config) echo.HandlerFunc {
 			})
 		}
 		if err != nil {
-			return err
+			return requestError(c, err, map[string]any{
+				"handler":   "get_wiki",
+				"operation": "get_page_by_slug",
+				"page_slug": slug,
+			})
 		}
 
 		revisions, err := queries.ListRevisionsByPage(c.Request().Context(), page.ID)
 		if err != nil {
-			return err
+			return requestError(c, err, map[string]any{
+				"handler":   "get_wiki",
+				"operation": "list_revisions_by_page",
+				"page_id":   page.ID,
+				"page_slug": slug,
+			})
 		}
 		if len(revisions) == 0 {
 			return c.String(http.StatusNotFound, "page has no revisions")
@@ -247,7 +276,12 @@ func getWikiHandler(cfg Config) echo.HandlerFunc {
 
 		htmlBody, err := renderMarkdownToHTML(revisions[0].Body)
 		if err != nil {
-			return err
+			return requestError(c, err, map[string]any{
+				"handler":   "get_wiki",
+				"operation": "render_markdown",
+				"page_id":   page.ID,
+				"page_slug": slug,
+			})
 		}
 
 		return c.Render(http.StatusOK, "layout", wikiViewData{
@@ -276,12 +310,19 @@ func markdownPreviewHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var req markdownPreviewRequest
 		if err := c.Bind(&req); err != nil {
+			setRequestError(c, err, map[string]any{
+				"handler":   "markdown_preview",
+				"operation": "bind_request",
+			})
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 		}
 
 		htmlBody, err := renderMarkdownToHTML(req.Markdown)
 		if err != nil {
-			return err
+			return requestError(c, err, map[string]any{
+				"handler":   "markdown_preview",
+				"operation": "render_markdown",
+			})
 		}
 
 		return c.JSON(http.StatusOK, markdownPreviewResponse{HTML: htmlBody})
@@ -364,13 +405,22 @@ func renderWikiEdit(c echo.Context, cfg Config, routePath string) error {
 
 	page, err := queries.GetPageBySlug(c.Request().Context(), slug)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return err
+		return requestError(c, err, map[string]any{
+			"handler":   "render_wiki_edit",
+			"operation": "get_page_by_slug",
+			"page_slug": slug,
+		})
 	}
 	if err == nil {
 		data.Title = page.Title
 		revisions, revErr := queries.ListRevisionsByPage(c.Request().Context(), page.ID)
 		if revErr != nil {
-			return revErr
+			return requestError(c, revErr, map[string]any{
+				"handler":   "render_wiki_edit",
+				"operation": "list_revisions_by_page",
+				"page_id":   page.ID,
+				"page_slug": slug,
+			})
 		}
 		if len(revisions) > 0 {
 			data.Body = revisions[0].Body
@@ -406,7 +456,11 @@ func saveWikiRevision(c echo.Context, cfg Config, slug string) error {
 		)
 	}
 	if err != nil {
-		return err
+		return requestError(c, err, map[string]any{
+			"handler":   "save_wiki_revision",
+			"operation": "get_or_create_page",
+			"page_slug": slug,
+		})
 	}
 
 	author := "unknown"
@@ -425,7 +479,12 @@ func saveWikiRevision(c echo.Context, cfg Config, slug string) error {
 		Checksum: checksum,
 	})
 	if err != nil {
-		return err
+		return requestError(c, err, map[string]any{
+			"handler":   "save_wiki_revision",
+			"operation": "create_revision",
+			"page_id":   page.ID,
+			"page_slug": slug,
+		})
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/wiki/"+slug)
@@ -447,6 +506,20 @@ func titleFromSlug(slug string) string {
 		return "Untitled"
 	}
 	return strings.ToUpper(name[:1]) + name[1:]
+}
+
+func setRequestError(c echo.Context, cause error, contextFields map[string]any) {
+	if cause != nil {
+		c.Set("request_error", cause)
+	}
+	if contextFields != nil {
+		c.Set("request_error_context", contextFields)
+	}
+}
+
+func requestError(c echo.Context, cause error, contextFields map[string]any) error {
+	setRequestError(c, cause, contextFields)
+	return cause
 }
 
 type templateRenderer struct {

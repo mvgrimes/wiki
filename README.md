@@ -48,6 +48,18 @@ go run ./... server
 go test ./...
 ```
 
+7) Setup minio for local development:
+
+```bash
+podman run --rm --name wiki-minio -p 9100:9000 -p 9101:9001\
+    -e MINIO_ROOT_USER=wiki -e MINIO_ROOT_PASSWORD=<wiki-password> \
+    -v "$(pwd)/data/minio:/data" quay.io/minio/minio server /data \
+    --console-address ":9001"
+nvim ~/.mc/config.json
+mc alias set wiki http://127.0.0.1:9100 wiki <wiki-password>
+mc mb -p wiki/wiki-uploads
+```
+
 ## Project Layout
 
 ```text
@@ -68,6 +80,19 @@ sql/                  # schema and sqlc query definitions
 - Template loading strategy:
   - development (`WIKI_ENVIRONMENT=development`): load templates from disk (`internal/web/templates`) for fast edit/reload.
   - non-development: load templates from embedded filesystem for reproducible deploys.
+
+## Request Error Logging Conventions
+
+- Request-level logs are emitted by Echo `RequestLogger` in `internal/server/server.go`.
+- `5xx` responses are logged at error level, `4xx` at warn level, and success responses at info level.
+- Handlers should attach root cause errors with `setRequestError(c, err, fields)` or `requestError(c, err, fields)` before returning.
+- Use these standard context keys in `fields` where applicable:
+  - `handler`: stable handler identifier (for example, `upload`, `get_wiki`, `save_wiki_revision`)
+  - `operation`: failing operation (for example, `put_object`, `get_page_by_slug`, `create_revision`)
+  - `page_slug`: wiki slug involved in the request
+  - `page_id`: numeric page id when available
+  - route-specific keys such as `upload_bucket` and `upload_key`
+- Keep client-facing error messages safe and concise; put diagnostic detail in `request_error` and `request_error_context`.
 
 ## Developer Commands
 

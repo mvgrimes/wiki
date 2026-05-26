@@ -43,16 +43,16 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if cfg.Queries == nil || cfg.UploadStore == nil ||
 			strings.TrimSpace(cfg.UploadBucket) == "" {
-			return uploadError(c, http.StatusServiceUnavailable, "upload service is not configured")
+			return uploadError(c, http.StatusServiceUnavailable, "upload service is not configured", nil)
 		}
 
 		if err := c.Request().ParseMultipartForm(maxBytes); err != nil {
-			return uploadError(c, http.StatusBadRequest, "invalid multipart form")
+			return uploadError(c, http.StatusBadRequest, "invalid multipart form", err)
 		}
 
 		slug, err := normalizeWikiSlug(c.FormValue("page_slug"))
 		if err != nil {
-			return uploadError(c, http.StatusBadRequest, "page_slug is required")
+			return uploadError(c, http.StatusBadRequest, "page_slug is required", err)
 		}
 
 		page, err := cfg.Queries.GetPageBySlug(c.Request().Context(), slug)
@@ -66,14 +66,14 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 			return err
 		}
 
-		fileHeader, err := c.FormFile("file")
+		fileHeader, err := uploadFormFile(c)
 		if err != nil {
-			return uploadError(c, http.StatusBadRequest, "file is required")
+			return uploadError(c, http.StatusBadRequest, "file is required", err)
 		}
 
 		contentType, data, err := readAndValidateUpload(fileHeader, maxBytes)
 		if err != nil {
-			return uploadError(c, http.StatusBadRequest, err.Error())
+			return uploadError(c, http.StatusBadRequest, err.Error(), err)
 		}
 
 		key := buildObjectKey(slug, fileHeader.Filename, data)
@@ -85,12 +85,21 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 			bytes.NewReader(data),
 			int64(len(data)),
 		); err != nil {
-			return uploadError(c, http.StatusBadGateway, "failed to store upload")
+			return uploadError(
+				c,
+				http.StatusBadGateway,
+				"failed to store upload",
+				err,
+				map[string]any{
+					"upload_bucket": cfg.UploadBucket,
+					"upload_key":    key,
+				},
+			)
 		}
 
 		revisionID, err := revisionIDFromForm(c.FormValue("revision_id"))
 		if err != nil {
-			return uploadError(c, http.StatusBadRequest, err.Error())
+			return uploadError(c, http.StatusBadRequest, err.Error(), err)
 		}
 
 		attachment, err := cfg.Queries.CreateAttachment(
@@ -109,6 +118,8 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusCreated, map[string]any{
+			"success":      true,
+			"image_path":   attachment.StorageKey,
 			"id":           attachment.ID,
 			"page_id":      attachment.PageID,
 			"revision_id":  nullableInt64(attachment.RevisionID),
@@ -118,6 +129,20 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 			"storage_key":  attachment.StorageKey,
 		})
 	}
+}
+
+func uploadFormFile(c echo.Context) (*multipart.FileHeader, error) {
+	fileHeader, err := c.FormFile("file")
+	if err == nil {
+		return fileHeader, nil
+	}
+
+	fileHeader, imageErr := c.FormFile("image_file")
+	if imageErr == nil {
+		return fileHeader, nil
+	}
+
+	return nil, err
 }
 
 func readAndValidateUpload(header *multipart.FileHeader, maxBytes int64) (string, []byte, error) {
@@ -206,6 +231,11 @@ func nullableInt64(v sql.NullInt64) any {
 	return v.Int64
 }
 
-func uploadError(c echo.Context, code int, message string) error {
+func uploadError(c echo.Context, code int, message string, cause error, contextFields ...map[string]any) error {
+	var fields map[string]any
+	if len(contextFields) > 0 {
+		fields = contextFields[0]
+	}
+	setRequestError(c, cause, fields)
 	return c.JSON(code, map[string]string{"error": message})
 }
