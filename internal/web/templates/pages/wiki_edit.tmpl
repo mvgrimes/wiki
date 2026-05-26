@@ -16,7 +16,7 @@
           data-page-slug="{{.Slug}}"
           class="mt-8 overflow-hidden"
         >
-          <section class="flex flex-col h-[70vh] w-full">
+          <section class="flex flex-col w-full">
             <h2 class="text-2xl">Editor</h2>
             <textarea
               id="wiki-body"
@@ -26,7 +26,7 @@
           </section>
         </div>
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
-          <section class="grid gap-4 lg:grid-cols-2">
+          <section class="grid gap-4 lg:grid-cols-2 hidden">
             <h2 class="text-2xl">Attachments</h2>
             <p>Drop files here or choose files to upload.</p>
             <div id="upload-dropzone" class="rounded border-2 border-dashed border-gray-500 p-4 data-[active=true]:border-cyan-700 data-[active=true]:bg-cyan-50">Drop files here</div>

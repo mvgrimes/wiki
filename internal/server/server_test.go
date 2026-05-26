@@ -425,6 +425,28 @@ func TestUploadEndpointSuccessAndFailurePaths(t *testing.T) {
 	if payload["storage_key"] == "" {
 		t.Fatalf("storage_key missing in response: %v", payload)
 	}
+	if payload["success"] != true {
+		t.Fatalf("success missing or false in response: %v", payload)
+	}
+	if payload["image_path"] == "" {
+		t.Fatalf("image_path missing in response: %v", payload)
+	}
+
+	imageBody := &bytes.Buffer{}
+	imageWriter := multipart.NewWriter(imageBody)
+	_ = imageWriter.WriteField("page_slug", "guides/uploads")
+	imagePart, _ := imageWriter.CreateFormFile("image_file", "picture.png")
+	_, _ = imagePart.Write([]byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})
+	_ = imageWriter.Close()
+
+	imageReq := httptest.NewRequest(http.MethodPost, "/api/uploads", imageBody)
+	imageReq.Header.Set(echo.HeaderContentType, imageWriter.FormDataContentType())
+	imageReq.AddCookie(auth)
+	imageRec := httptest.NewRecorder()
+	e.ServeHTTP(imageRec, imageReq)
+	if imageRec.Code != http.StatusCreated {
+		t.Fatalf("image-file status = %d, want %d (%s)", imageRec.Code, http.StatusCreated, imageRec.Body.String())
+	}
 
 	store.err = errors.New("s3 unavailable")
 	failBody := &bytes.Buffer{}

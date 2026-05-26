@@ -6,7 +6,34 @@ function initMarkdownEditor(textarea) {
     return null;
   }
 
-  const editor = new MarkdownEditor(`#${textarea.id}`, { mode: "hybrid" });
+  const pageSlug = editorApp?.dataset.pageSlug || "";
+  const editor = new MarkdownEditor(`#${textarea.id}`, {
+    mode: "hybrid",
+    toolbar: [
+      "heading",
+      "bold",
+      "italic",
+      "strikethrough",
+      "blockquote",
+      "ul",
+      "ol",
+      "checklist",
+      "code",
+      "codeblock",
+      {
+        image: {
+          fileInput: {
+            accept: ["png", "jpg", "jpeg", "webp", "gif"],
+            uploadUrl: "/api/uploads",
+            params: { page_slug: pageSlug },
+          },
+          altInput: { required: false },
+        },
+      },
+      "link",
+      "preview",
+    ],
+  });
   wireServerPreview(editor, textarea);
   return editor;
 }
@@ -50,7 +77,8 @@ function wireServerPreview(editor, textarea) {
     }, 500);
   };
 
-  const originalRender = typeof editor.render === "function" ? editor.render.bind(editor) : null;
+  const originalRender =
+    typeof editor.render === "function" ? editor.render.bind(editor) : null;
   if (originalRender) {
     editor.render = (...args) => {
       const result = originalRender(...args);
