@@ -92,11 +92,19 @@ function wireServerPreview(editor, textarea) {
 
 export function buildAttachmentMarkdown(payload) {
   const name = payload.file_name || "upload";
-  const target = payload.storage_key || "";
+  const target = attachmentURL(payload);
   if (payload.content_type && payload.content_type.startsWith("image/")) {
     return `![${name}](${target})`;
   }
   return `[${name}](${target})`;
+}
+
+function attachmentURL(payload) {
+  const raw = payload.image_path || payload.storage_key || "";
+  if (!raw) {
+    return "";
+  }
+  return raw.startsWith("/") ? raw : `/${raw}`;
 }
 
 export async function previewMarkdown(markdown) {

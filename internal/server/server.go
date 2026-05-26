@@ -176,8 +176,48 @@ func New(cfg Config) (*echo.Echo, error) {
 	e.POST("/wiki/*", postWikiHandler(cfg))
 	e.POST("/api/markdown/preview", markdownPreviewHandler())
 	e.POST("/api/uploads", uploadHandler(cfg))
+	e.GET("/attachments/*", attachmentHandler(cfg))
 
 	return e, nil
+}
+
+func attachmentHandler(cfg Config) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if cfg.UploadStore == nil || strings.TrimSpace(cfg.UploadBucket) == "" {
+			return c.String(http.StatusServiceUnavailable, "attachment service is not configured")
+		}
+
+		key := strings.Trim(c.Param("*"), "/")
+		if key == "" {
+			return c.String(http.StatusNotFound, "attachment not found")
+		}
+
+		storageKey := "attachments/" + key
+		attachment, err := cfg.UploadStore.GetObject(
+			c.Request().Context(),
+			cfg.UploadBucket,
+			storageKey,
+		)
+		if err != nil {
+			if errors.Is(err, errAttachmentNotFound) {
+				return c.String(http.StatusNotFound, "attachment not found")
+			}
+			return requestError(c, err, map[string]any{
+				"handler":       "get_attachment",
+				"operation":     "get_object",
+				"upload_bucket": cfg.UploadBucket,
+				"upload_key":    storageKey,
+			})
+		}
+		defer attachment.Body.Close()
+
+		contentType := strings.TrimSpace(attachment.ContentType)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+
+		return c.Stream(http.StatusOK, contentType, attachment.Body)
+	}
 }
 
 type wikiViewData struct {

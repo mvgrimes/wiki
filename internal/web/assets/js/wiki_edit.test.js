@@ -27,7 +27,7 @@ test("buildAttachmentMarkdown handles image payload", () => {
     storage_key: "attachments/page/file.png",
     content_type: "image/png",
   });
-  assert.equal(snippet, "![photo.png](attachments/page/file.png)");
+  assert.equal(snippet, "![photo.png](/attachments/page/file.png)");
 });
 
 test("buildAttachmentMarkdown handles non-image payload", () => {
@@ -36,5 +36,5 @@ test("buildAttachmentMarkdown handles non-image payload", () => {
     storage_key: "attachments/page/guide.pdf",
     content_type: "application/pdf",
   });
-  assert.equal(snippet, "[guide.pdf](attachments/page/guide.pdf)");
+  assert.equal(snippet, "[guide.pdf](/attachments/page/guide.pdf)");
 });

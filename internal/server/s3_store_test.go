@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 type s3PutClientStub struct {
 	input *s3.PutObjectInput
+	getIn *s3.GetObjectInput
+	get   *s3.GetObjectOutput
 	err   error
+	getErr error
 }
 
 func (s *s3PutClientStub) PutObject(
@@ -25,6 +30,21 @@ func (s *s3PutClientStub) PutObject(
 		return nil, s.err
 	}
 	return &s3.PutObjectOutput{}, nil
+}
+
+func (s *s3PutClientStub) GetObject(
+	_ context.Context,
+	params *s3.GetObjectInput,
+	_ ...func(*s3.Options),
+) (*s3.GetObjectOutput, error) {
+	s.getIn = params
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	if s.get != nil {
+		return s.get, nil
+	}
+	return &s3.GetObjectOutput{}, nil
 }
 
 func TestS3ObjectStorePutObject(t *testing.T) {
@@ -67,5 +87,30 @@ func TestNewS3ObjectStoreRequiresRegion(t *testing.T) {
 	_, err := NewS3ObjectStore("", "", "", "", true)
 	if err == nil || !strings.Contains(err.Error(), "s3 region is required") {
 		t.Fatalf("error = %v, want region required", err)
+	}
+}
+
+func TestS3ObjectStoreGetObject(t *testing.T) {
+	client := &s3PutClientStub{get: &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("x")), ContentType: nil}}
+	store := &S3ObjectStore{client: client}
+
+	obj, err := store.GetObject(context.Background(), "bucket-1", "attachments/a/file.txt")
+	if err != nil {
+		t.Fatalf("GetObject() error = %v", err)
+	}
+	if client.getIn == nil || *client.getIn.Bucket != "bucket-1" || *client.getIn.Key != "attachments/a/file.txt" {
+		t.Fatalf("unexpected get object input: %#v", client.getIn)
+	}
+	_ = obj.Body.Close()
+}
+
+func TestS3ObjectStoreGetObjectNotFound(t *testing.T) {
+	store := &S3ObjectStore{client: &s3PutClientStub{getErr: &types.NoSuchKey{}}}
+	err := func() error {
+		_, err := store.GetObject(context.Background(), "bucket-1", "attachments/a/missing.txt")
+		return err
+	}()
+	if !errors.Is(err, errAttachmentNotFound) {
+		t.Fatalf("GetObject() error = %v, want attachment not found", err)
 	}
 }

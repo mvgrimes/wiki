@@ -33,6 +33,7 @@ type failingRenderer struct{}
 
 type objectStoreStub struct {
 	err         error
+	getErr      error
 	bucket      string
 	key         string
 	contentType string
@@ -55,6 +56,19 @@ func (s *objectStoreStub) PutObject(
 		s.body = buf
 	}
 	return s.err
+}
+
+func (s *objectStoreStub) GetObject(_ context.Context, bucket, key string) (AttachmentObject, error) {
+	if s.getErr != nil {
+		return AttachmentObject{}, s.getErr
+	}
+	if bucket != s.bucket || key != s.key {
+		return AttachmentObject{}, errAttachmentNotFound
+	}
+	return AttachmentObject{
+		Body:        io.NopCloser(bytes.NewReader(s.body)),
+		ContentType: s.contentType,
+	}, nil
 }
 
 func (failingRenderer) Render(_ io.Writer, _ string, _ any, _ echo.Context) error {
@@ -430,6 +444,20 @@ func TestUploadEndpointSuccessAndFailurePaths(t *testing.T) {
 	}
 	if payload["image_path"] == "" {
 		t.Fatalf("image_path missing in response: %v", payload)
+	}
+	if !strings.HasPrefix(payload["image_path"].(string), "/attachments/") {
+		t.Fatalf("image_path = %v, want absolute /attachments path", payload["image_path"])
+	}
+
+	attachmentReq := httptest.NewRequest(http.MethodGet, "/"+store.key, nil)
+	attachmentReq.AddCookie(auth)
+	attachmentRec := httptest.NewRecorder()
+	e.ServeHTTP(attachmentRec, attachmentReq)
+	if attachmentRec.Code != http.StatusOK {
+		t.Fatalf("attachment status = %d, want %d", attachmentRec.Code, http.StatusOK)
+	}
+	if got := attachmentRec.Body.String(); got != "hello upload" {
+		t.Fatalf("attachment body = %q, want %q", got, "hello upload")
 	}
 
 	imageBody := &bytes.Buffer{}

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -10,18 +11,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type s3PutClient interface {
+type s3Client interface {
 	PutObject(
 		ctx context.Context,
 		params *s3.PutObjectInput,
 		optFns ...func(*s3.Options),
 	) (*s3.PutObjectOutput, error)
+	GetObject(
+		ctx context.Context,
+		params *s3.GetObjectInput,
+		optFns ...func(*s3.Options),
+	) (*s3.GetObjectOutput, error)
 }
 
 type S3ObjectStore struct {
-	client s3PutClient
+	client s3Client
 }
 
 func NewS3ObjectStore(
@@ -70,4 +77,20 @@ func (s *S3ObjectStore) PutObject(
 		return fmt.Errorf("s3 put object: %w", err)
 	}
 	return nil
+}
+
+func (s *S3ObjectStore) GetObject(ctx context.Context, bucket, key string) (AttachmentObject, error) {
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		var noSuchKey *types.NoSuchKey
+		if errors.As(err, &noSuchKey) {
+			return AttachmentObject{}, errAttachmentNotFound
+		}
+		return AttachmentObject{}, fmt.Errorf("s3 get object: %w", err)
+	}
+
+	return AttachmentObject{Body: out.Body, ContentType: aws.ToString(out.ContentType)}, nil
 }

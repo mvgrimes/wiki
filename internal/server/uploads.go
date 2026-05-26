@@ -25,6 +25,8 @@ const defaultUploadMaxBytes int64 = 10 << 20
 
 var safeObjectChars = regexp.MustCompile(`[^a-z0-9._-]+`)
 
+var errAttachmentNotFound = errors.New("attachment not found")
+
 type ObjectStore interface {
 	PutObject(
 		ctx context.Context,
@@ -32,6 +34,12 @@ type ObjectStore interface {
 		body io.Reader,
 		size int64,
 	) error
+	GetObject(ctx context.Context, bucket, key string) (AttachmentObject, error)
+}
+
+type AttachmentObject struct {
+	Body        io.ReadCloser
+	ContentType string
 }
 
 func uploadHandler(cfg Config) echo.HandlerFunc {
@@ -119,7 +127,7 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 
 		return c.JSON(http.StatusCreated, map[string]any{
 			"success":      true,
-			"image_path":   attachment.StorageKey,
+			"image_path":   attachmentPath(attachment.StorageKey),
 			"id":           attachment.ID,
 			"page_id":      attachment.PageID,
 			"revision_id":  nullableInt64(attachment.RevisionID),
@@ -229,6 +237,14 @@ func nullableInt64(v sql.NullInt64) any {
 		return nil
 	}
 	return v.Int64
+}
+
+func attachmentPath(storageKey string) string {
+	trimmed := strings.TrimSpace(storageKey)
+	if trimmed == "" {
+		return ""
+	}
+	return "/" + strings.TrimPrefix(trimmed, "/")
 }
 
 func uploadError(c echo.Context, code int, message string, cause error, contextFields ...map[string]any) error {
