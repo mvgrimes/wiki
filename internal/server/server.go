@@ -42,6 +42,7 @@ type Config struct {
 	LogoHeroURL    string
 	FaviconURL     string
 	TemplatesDir   string
+	AssetsDir      string
 	JWTSecret      string
 	SSOLoginURL    string
 	ServerURL      string
@@ -172,7 +173,10 @@ func New(cfg Config) (*echo.Echo, error) {
 	})
 	e.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
 	e.GET("/readyz", func(c echo.Context) error { return c.NoContent(http.StatusOK) })
-	e.Static("/assets", "internal/web/assets")
+	e.GET(
+		"/assets/*",
+		echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS(cfg))))),
+	)
 	e.GET("/wiki/*", getWikiHandler(cfg))
 	e.POST("/wiki/*", postWikiHandler(cfg))
 	e.POST("/api/markdown/preview", markdownPreviewHandler())
@@ -652,6 +656,23 @@ func templateFS(cfg Config) fs.FS {
 	sub, err := fs.Sub(web.TemplatesFS, "templates")
 	if err != nil {
 		return web.TemplatesFS
+	}
+
+	return sub
+}
+
+func assetsFS(cfg Config) fs.FS {
+	if strings.EqualFold(cfg.Environment, "development") {
+		dir := cfg.AssetsDir
+		if strings.TrimSpace(dir) == "" {
+			dir = "internal/web/assets"
+		}
+		return os.DirFS(dir)
+	}
+
+	sub, err := fs.Sub(web.AssetsFS, "assets")
+	if err != nil {
+		return web.AssetsFS
 	}
 
 	return sub
