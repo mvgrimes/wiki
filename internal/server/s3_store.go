@@ -79,7 +79,10 @@ func (s *S3ObjectStore) PutObject(
 	return nil
 }
 
-func (s *S3ObjectStore) GetObject(ctx context.Context, bucket, key string) (AttachmentObject, error) {
+func (s *S3ObjectStore) GetObject(
+	ctx context.Context,
+	bucket, key string,
+) (AttachmentObject, error) {
 	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),

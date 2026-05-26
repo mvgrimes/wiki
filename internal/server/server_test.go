@@ -58,7 +58,10 @@ func (s *objectStoreStub) PutObject(
 	return s.err
 }
 
-func (s *objectStoreStub) GetObject(_ context.Context, bucket, key string) (AttachmentObject, error) {
+func (s *objectStoreStub) GetObject(
+	_ context.Context,
+	bucket, key string,
+) (AttachmentObject, error) {
 	if s.getErr != nil {
 		return AttachmentObject{}, s.getErr
 	}
@@ -473,7 +476,12 @@ func TestUploadEndpointSuccessAndFailurePaths(t *testing.T) {
 	imageRec := httptest.NewRecorder()
 	e.ServeHTTP(imageRec, imageReq)
 	if imageRec.Code != http.StatusCreated {
-		t.Fatalf("image-file status = %d, want %d (%s)", imageRec.Code, http.StatusCreated, imageRec.Body.String())
+		t.Fatalf(
+			"image-file status = %d, want %d (%s)",
+			imageRec.Code,
+			http.StatusCreated,
+			imageRec.Body.String(),
+		)
 	}
 
 	store.err = errors.New("s3 unavailable")

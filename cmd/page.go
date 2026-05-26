@@ -154,7 +154,8 @@ func init() {
 	pageCreateCmd.Flags().String("slug", "", "Page slug (for example: guides/getting-started)")
 	pageCreateCmd.Flags().String("title", "", "Page title (defaults from slug)")
 	pageCreateCmd.Flags().String("body", "", "Markdown body content")
-	pageCreateCmd.Flags().String("body-file", "", "Read markdown body from file path, or '-' for stdin")
+	pageCreateCmd.Flags().
+		String("body-file", "", "Read markdown body from file path, or '-' for stdin")
 	pageCreateCmd.Flags().String("author", "cli", "Revision author")
 
 	pageCmd.AddCommand(pageCreateCmd)

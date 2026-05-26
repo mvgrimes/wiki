@@ -9,13 +9,13 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.101.0
 	github.com/charmbracelet/log v1.0.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/honeybadger-io/honeybadger-go v0.9.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/spf13/cobra v1.9.1
 	github.com/yuin/goldmark v1.8.2
 	go.abhg.dev/goldmark/mermaid v0.6.0
-	go.abhg.dev/goldmark/toc v0.12.0
 	go.abhg.dev/goldmark/wikilink v0.6.0
 	modernc.org/sqlite v1.50.0
 )
@@ -45,7 +45,6 @@ require (
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/honeybadger-io/honeybadger-go v0.9.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect

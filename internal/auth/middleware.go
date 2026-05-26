@@ -62,7 +62,15 @@ func Middleware(cfg Config) echo.MiddlewareFunc {
 				return unauthenticated(c, cfg)
 			}
 
-			slog.Info("authenticated user", "user", principal.User, "email", principal.Email, "role", principal.Role)
+			slog.Info(
+				"authenticated user",
+				"user",
+				principal.User,
+				"email",
+				principal.Email,
+				"role",
+				principal.Role,
+			)
 			if principal.Role != "EMPLOYEE" {
 				return unauthenticated(c, cfg)
 			}

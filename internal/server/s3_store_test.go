@@ -13,10 +13,10 @@ import (
 )
 
 type s3PutClientStub struct {
-	input *s3.PutObjectInput
-	getIn *s3.GetObjectInput
-	get   *s3.GetObjectOutput
-	err   error
+	input  *s3.PutObjectInput
+	getIn  *s3.GetObjectInput
+	get    *s3.GetObjectOutput
+	err    error
 	getErr error
 }
 
@@ -91,14 +91,17 @@ func TestNewS3ObjectStoreRequiresRegion(t *testing.T) {
 }
 
 func TestS3ObjectStoreGetObject(t *testing.T) {
-	client := &s3PutClientStub{get: &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("x")), ContentType: nil}}
+	client := &s3PutClientStub{
+		get: &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("x")), ContentType: nil},
+	}
 	store := &S3ObjectStore{client: client}
 
 	obj, err := store.GetObject(context.Background(), "bucket-1", "attachments/a/file.txt")
 	if err != nil {
 		t.Fatalf("GetObject() error = %v", err)
 	}
-	if client.getIn == nil || *client.getIn.Bucket != "bucket-1" || *client.getIn.Key != "attachments/a/file.txt" {
+	if client.getIn == nil || *client.getIn.Bucket != "bucket-1" ||
+		*client.getIn.Key != "attachments/a/file.txt" {
 		t.Fatalf("unexpected get object input: %#v", client.getIn)
 	}
 	_ = obj.Body.Close()

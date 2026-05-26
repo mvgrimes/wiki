@@ -51,7 +51,12 @@ func uploadHandler(cfg Config) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if cfg.Queries == nil || cfg.UploadStore == nil ||
 			strings.TrimSpace(cfg.UploadBucket) == "" {
-			return uploadError(c, http.StatusServiceUnavailable, "upload service is not configured", nil)
+			return uploadError(
+				c,
+				http.StatusServiceUnavailable,
+				"upload service is not configured",
+				nil,
+			)
 		}
 
 		if err := c.Request().ParseMultipartForm(maxBytes); err != nil {
@@ -247,7 +252,13 @@ func attachmentPath(storageKey string) string {
 	return "/" + strings.TrimPrefix(trimmed, "/")
 }
 
-func uploadError(c echo.Context, code int, message string, cause error, contextFields ...map[string]any) error {
+func uploadError(
+	c echo.Context,
+	code int,
+	message string,
+	cause error,
+	contextFields ...map[string]any,
+) error {
 	var fields map[string]any
 	if len(contextFields) > 0 {
 		fields = contextFields[0]

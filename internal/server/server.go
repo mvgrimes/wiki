@@ -24,6 +24,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"go.abhg.dev/goldmark/mermaid"
+
 	// "go.abhg.dev/goldmark/toc"
 	"go.abhg.dev/goldmark/wikilink"
 

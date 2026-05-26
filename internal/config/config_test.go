@@ -13,7 +13,10 @@ func TestLoadSuccess(t *testing.T) {
 	t.Setenv("WIKI_LOG_LEVEL", "debug")
 	t.Setenv("WIKI_BRANDING", "Acme Wiki")
 	t.Setenv("WIKI_LOGO", "https://cdn.example.com/logo.svg")
-	t.Setenv("WIKI_LOGO_HERO", "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X4Z8AAAAASUVORK5CYII=")
+	t.Setenv(
+		"WIKI_LOGO_HERO",
+		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X4Z8AAAAASUVORK5CYII=",
+	)
 	t.Setenv("WIKI_FAVICON", "https://cdn.example.com/favicon.ico")
 	t.Setenv("WIKI_DATABASE_URL", "./data/wiki.test.db")
 	t.Setenv("WIKI_JWT_SECRET", "jwt-secret")
@@ -47,7 +50,11 @@ func TestLoadSuccess(t *testing.T) {
 		t.Fatalf("LogoURL = %q, want %q", cfg.LogoURL, "https://cdn.example.com/logo.svg")
 	}
 	if cfg.LogoHeroURL != "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X4Z8AAAAASUVORK5CYII=" {
-		t.Fatalf("LogoHeroURL = %q, want %q", cfg.LogoHeroURL, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X4Z8AAAAASUVORK5CYII=")
+		t.Fatalf(
+			"LogoHeroURL = %q, want %q",
+			cfg.LogoHeroURL,
+			"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X4Z8AAAAASUVORK5CYII=",
+		)
 	}
 	if cfg.FaviconURL != "https://cdn.example.com/favicon.ico" {
 		t.Fatalf("FaviconURL = %q, want %q", cfg.FaviconURL, "https://cdn.example.com/favicon.ico")

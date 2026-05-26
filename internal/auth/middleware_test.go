@@ -27,7 +27,8 @@ func TestMiddleware_AllowsBearerTokenAndSetsPrincipal(t *testing.T) {
 		if !ok {
 			t.Fatal("expected principal in context")
 		}
-		if p.Subject != "user-1" || p.User != 42 || p.Role != "EMPLOYEE" || len(p.Capabilities) != 2 {
+		if p.Subject != "user-1" || p.User != 42 || p.Role != "EMPLOYEE" ||
+			len(p.Capabilities) != 2 {
 			t.Fatalf("unexpected principal: %+v", p)
 		}
 		return c.NoContent(http.StatusNoContent)

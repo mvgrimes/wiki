@@ -56,11 +56,14 @@ func Load() (*Config, error) {
 	}
 
 	environment := envOrDefault("WIKI_ENVIRONMENT", "development")
-	if legacyEnvironment := strings.TrimSpace(os.Getenv("FILESHARE_ENVIRONMENT")); legacyEnvironment != "" {
+	if legacyEnvironment := strings.TrimSpace(
+		os.Getenv("FILESHARE_ENVIRONMENT"),
+	); legacyEnvironment != "" {
 		environment = legacyEnvironment
 	}
 
-	errorMonitoringEnabled := strings.EqualFold(environment, "production") || testErrorMonitoringEnabled
+	errorMonitoringEnabled := strings.EqualFold(environment, "production") ||
+		testErrorMonitoringEnabled
 
 	cfg := &Config{
 		Environment:                environment,
@@ -101,7 +104,8 @@ func imageEnvOrDataURL(key string) string {
 	}
 
 	lower := strings.ToLower(v)
-	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "data:") {
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") ||
+		strings.HasPrefix(lower, "data:") {
 		return v
 	}
 
