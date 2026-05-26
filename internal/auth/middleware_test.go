@@ -118,7 +118,7 @@ func TestMiddleware_BadSignatureRedirectsForHTML(t *testing.T) {
 	}
 
 	location := rec.Header().Get(echo.HeaderLocation)
-	if location != "/sso/login?return_to=%2Fpages%2Fabc" {
+	if location != "/sso/login?redirectTo=%2Fpages%2Fabc" {
 		t.Fatalf("unexpected redirect location: %s", location)
 	}
 }
