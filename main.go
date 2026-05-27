@@ -9,12 +9,12 @@ import (
 	"wiki/cmd"
 )
 
-var version = "0.1.1"
+var version = "0.1.2"
 
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("error loading .env file: ", err)
+		fmt.Println("dotenv load: ", err)
 	}
 
 	if err := cmd.Execute(); err != nil {
