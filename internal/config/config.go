@@ -50,18 +50,12 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	testErrorMonitoringEnabled, err := boolEnvOrDefault("FILESHARE_TEST_ERROR_MONITORING", false)
+	testErrorMonitoringEnabled, err := boolEnvOrDefault("WIKI_TEST_ERROR_MONITORING", false)
 	if err != nil {
 		return nil, err
 	}
 
 	environment := envOrDefault("WIKI_ENVIRONMENT", "development")
-	if legacyEnvironment := strings.TrimSpace(
-		os.Getenv("FILESHARE_ENVIRONMENT"),
-	); legacyEnvironment != "" {
-		environment = legacyEnvironment
-	}
-
 	errorMonitoringEnabled := strings.EqualFold(environment, "production") ||
 		testErrorMonitoringEnabled
 
@@ -69,7 +63,7 @@ func Load() (*Config, error) {
 		Environment:                environment,
 		LogLevel:                   envOrDefault("WIKI_LOG_LEVEL", "info"),
 		ErrorMonitoringEnabled:     errorMonitoringEnabled,
-		HoneybadgerAPIKey:          strings.TrimSpace(os.Getenv("FILESHARE_HONEYBADGER_API_KEY")),
+		HoneybadgerAPIKey:          strings.TrimSpace(os.Getenv("WIKI_HONEYBADGER_API_KEY")),
 		TestErrorMonitoringEnabled: testErrorMonitoringEnabled,
 		Branding:                   envOrDefault("WIKI_BRANDING", "Wiki"),
 		LogoURL:                    imageEnvOrDataURL("WIKI_LOGO"),

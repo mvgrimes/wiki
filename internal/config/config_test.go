@@ -116,8 +116,8 @@ func TestLoadEnablesMonitoringForProduction(t *testing.T) {
 	t.Setenv("WIKI_SERVER_URL", "https://wiki.test")
 	t.Setenv("WIKI_JWT_SECRET", "jwt-secret")
 	t.Setenv("WIKI_SSO_LOGIN_URL", "/sso/login")
-	t.Setenv("FILESHARE_ENVIRONMENT", "production")
-	t.Setenv("FILESHARE_HONEYBADGER_API_KEY", "hb-key")
+	t.Setenv("WIKI_ENVIRONMENT", "production")
+	t.Setenv("WIKI_HONEYBADGER_API_KEY", "hb-key")
 
 	cfg, err := Load()
 	if err != nil {
@@ -135,7 +135,7 @@ func TestLoadEnablesMonitoringForTestFlag(t *testing.T) {
 	t.Setenv("WIKI_SERVER_URL", "https://wiki.test")
 	t.Setenv("WIKI_JWT_SECRET", "jwt-secret")
 	t.Setenv("WIKI_SSO_LOGIN_URL", "/sso/login")
-	t.Setenv("FILESHARE_TEST_ERROR_MONITORING", "true")
+	t.Setenv("WIKI_TEST_ERROR_MONITORING", "true")
 
 	cfg, err := Load()
 	if err != nil {

@@ -52,7 +52,7 @@ var serverCmd = &cobra.Command{
 		var reportError func(ctx context.Context, err error, fields map[string]any)
 		if cfg.ErrorMonitoringEnabled {
 			if strings.TrimSpace(cfg.HoneybadgerAPIKey) == "" {
-				slog.Warn("error monitoring enabled but FILESHARE_HONEYBADGER_API_KEY is not set")
+				slog.Warn("error monitoring enabled but WIKI_HONEYBADGER_API_KEY is not set")
 			} else {
 				monitoring.ConfigureHoneybadger(cfg.HoneybadgerAPIKey, cfg.Environment)
 				reportError = monitoring.NotifyError
