@@ -9,7 +9,7 @@ import (
 	"wiki/cmd"
 )
 
-var version = "0.1.2"
+var version = "0.1.3"
 
 func main() {
 	err := godotenv.Load()
